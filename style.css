@@ -9,3 +9,43 @@ h1 {
     font-family:DancingScript, cursive;
     padding:10px;
 }
+/*
+    #8B4513  Brown
+    #004000  Tree Green
+    #000040  Dark Blue
+    #40C0FF  Light Blue
+*/
+.max-size {
+    max-width:800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.logo {
+    border-radius:100%;
+    height:100px;
+    float:left;
+}
+.logo + p {
+    height:100px;
+    vertical-align: middle;
+}
+header {
+    background-color: #004000;
+    color:white;
+}
+#book-now-header {
+    color:#60c0ff;
+    text-decoration: none;
+}
+#book-now-header:hover {
+    color:#40a0e0;
+}
+#book-now-header::after {
+    position:relative;
+    left:0px;
+    content: " >";
+    transition:.25s left ease-out;
+}
+#book-now-header:hover::after {
+    left:5px;
+}
