@@ -1,0 +1,11 @@
+@font-face {
+    font-family: DancingScript;
+    font-weight: normal;
+    font-style: normal;
+    src: url("assets/dancing-script.woff2") format("woff2");
+}
+
+h1 {
+    font-family:DancingScript, cursive;
+    padding:10px;
+}
