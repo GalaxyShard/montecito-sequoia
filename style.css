@@ -16,22 +16,39 @@ h1 {
     #40C0FF  Light Blue
 */
 .max-size {
-    max-width:800px;
+    max-width:700px;
     margin-left: auto;
     margin-right: auto;
 }
 .logo {
     border-radius:100%;
     height:100px;
-    float:left;
+    width:100px;
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
 }
-.logo + p {
+header .description {
     height:100px;
-    vertical-align: middle;
+    position:relative;
+}
+header .description > p {
+    display:block;
+    position:absolute;
+    left:100px;
+    right:0;
+    top:0;
+    bottom:0;
+
+    transform:translate(0, 25%);
 }
 header {
     background-color: #004000;
     color:white;
+}
+header .row {
+    padding-bottom: 20px;
 }
 #book-now-header {
     color:#60c0ff;
