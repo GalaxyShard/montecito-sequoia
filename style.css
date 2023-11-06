@@ -128,3 +128,13 @@ nav a:hover {
     object-fit:cover;
     object-position: 50% 50%;
 }
+
+
+.testimonial-name {
+    display:block;
+    font-style:italic;
+    font-weight:bold;
+}
+.testimonial-name::before {
+    content: "- ";
+}
