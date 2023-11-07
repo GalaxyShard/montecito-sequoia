@@ -14,19 +14,23 @@
         <div class="row max-size">
             <div class="d-none d-md-block col-1"></div>
             <div class="col-11 col-md-8 description">
-                <img class="logo" src="assets/logo.webp" alt="logo">
+                <div class="logo-container">
+                    <img class="logo" src="assets/logo.webp" alt="logo">
+                </div>
                 <p>
                     A Classic, All-Inclusive, Year-round Lodge &<br>Summer Family Camp in California
                 </p>
             </div>
-            <div class="col-12 col-md-3 quick-link">
+            <div class="d-block d-md-none col-1"></div>
+            <div class="col-12 col-md-3 quick-link mt-3 mt-md-0">
                 <div>
-                    <span>800-227-9900</span><br>
+                    <a href="tel:+1-800-227-9900">800-227-9900</a><br>
                     <a id="book-now-header" href="javascript:void(0)">Book Online Now</a>
                 </div>
             </div>
         </div>
     </header>
+    
     <nav>
         <div class="row max-size">
             <div class="col-6 col-md-3">
@@ -44,19 +48,16 @@
         </div>
     </nav>
 
+
     <div id="hero-container">
         <img id="hero-background" src="assets/hero/pow-wow.webp" alt="">
-        <img id="hero-foreground" src="assets/hero/pow-wow.webp" alt="">
+        <img id="hero-foreground" src="assets/hero/pow-wow.webp" aria-hidden="true">
     </div>
 
 
-
-    <!-- TODO: something here -->
-
-    
-
     <div class="row max-size">
         <main class="col-12 col-md-7">
+            <h2 class="my-4 text-center">Welcome</h2>
             <p>
                 Montecito Sequoia Lodge is an award-winning, all-inclusive, family-friendly lodge, located in the Giant Sequoia National Monument on National Forest Service land, and inside the gates of Sequoia & Kings Canyon National Parks.  
             </p>
@@ -91,8 +92,12 @@
             <p>
                 It is important that our guests know that our accommodations do not have tvs or phones in the rooms to distract you from the natural beauty of the parks.  We do offer free Wi-Fi to our guests, but please be aware that we are reliant on satellites for our Wi-Fi service due to our remote mountain location.  At times of high-use, our Wi-Fi will be slower than most of our guests are used to at home.  Also due to our remote location, there is no cell service on our property, but our Front Desk can help guests that need to make or receive calls.  We also feature a communal TV in our Ponderosa Activity Room, for family-friendly viewing (including important sporting events).
             </p>
+            <hr>
         </main>
+
+
         <aside class="col-12 col-md-5">
+            <h2 class="my-4 text-center">Testimonials</h2>
             <p>
                 "Best family vacation ever!  We have gone for 4 years and plan to keep going back.  It is truly the only place where children can be safely independent from their parents while enjoying new friends and activities.  Parents can relax and enjoy their own activities since they know their kids are safe and happy.  Montecito Sequoia Lodge has the BEST staff ever and we always look forward to seeing them again!"
                 <span class="testimonial-name">Lynn Whitcomb</span>
@@ -137,7 +142,21 @@
                 "I love this place. My kids had so much fun."
                 <span class="testimonial-name">Lisa McDowell Nathan</span>
             </p>
+            <hr>
         </aside>
     </div>
+
+
+    <footer>
+        <div class="max-size">
+            <div class="py-4">
+                <a href="tel:+1-800-227-9900">800-227-9900</a><br>
+                <a href="mailto:reserve@mslodge.com">reserve@mslodge.com</a>
+            </div>
+            <p class="m-0 pb-4" style="font-size:small;">
+                <i>Montecito Lake Resort, LLC, is a recreation partner with the Sequoia National Forest on a non-discriminatory basis.</i>
+            </p>
+        </div>
+    </footer>
 </body>
 </html>
