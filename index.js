@@ -13,7 +13,7 @@ let images = [
     "archery.webp",
 ];
 
-setInterval(() => {
+function prepareNextImage() {
     primary = !primary;
     count++;
 
@@ -30,6 +30,13 @@ setInterval(() => {
     for (let imgNode of current.children) {
         imgNode.src = nextImg;
     }
-    current.classList.add("current");
-    prev.classList.remove("current");
-}, 4000);
+    setTimeout(() => {
+        current.classList.add("current");
+        prev.classList.remove("current");
+    }, 2000);
+}
+
+setTimeout(() => {
+    prepareNextImage();
+    setInterval(prepareNextImage, 4000);
+}, 2000);

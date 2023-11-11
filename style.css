@@ -11,6 +11,9 @@
     #000040  Dark Blue
     #40C0FF  Light Blue
 */
+:root {
+    background-color: #004000;
+}
 .max-size {
     max-width:800px;
     box-sizing:border-box;
@@ -129,7 +132,6 @@ nav a:hover {
     right:-10px;
 
     filter:blur(5px);
-    z-index: -1;
     object-fit:cover;
     object-position: 50% 33%;
 }
@@ -142,6 +144,23 @@ nav a:hover {
 
     object-fit:cover;
     object-position: 50% 33%;
+
+    position:relative; /* note: needed for z positioning */
+}
+
+
+
+#awards > div {
+    display:flex;
+    justify-content: center;
+}
+#awards img {
+    overflow:clip; /* note: needed for safari to properly set width */
+    width:100%;
+    max-width: 125px;
+    object-fit: contain;
+    border-radius:5px;
+    margin:5px;
 }
 
 
@@ -165,4 +184,19 @@ footer {
 footer a {
     color:white;
     line-height:1.75em;
+}
+.social-links {
+    display:flex;
+    justify-content: center;
+}
+.social-links > * {
+    text-decoration: none;
+    padding-left:5px;
+    padding-right:5px;
+}
+.social-links img {
+    width:40px;
+    height:40px;
+    border-radius:5px;
+    border:1px #000000 solid;
 }
