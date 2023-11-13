@@ -15,7 +15,7 @@
     background-color: #004000;
 }
 .max-size {
-    max-width:800px;
+    max-width:900px;
     box-sizing:border-box;
     margin-left: auto;
     margin-right: auto;
@@ -24,7 +24,10 @@
 h1 {
     padding:20px 0px 10px 0px;
 }
-h1, h2 {
+h1,h2,h3,h4,h5,h6 {
+    font-weight:normal;
+}
+.cursive {
     font-family:DancingScript, cursive;
 }
 
@@ -49,7 +52,7 @@ header .logo-container {
 header .logo {
     border-radius:100%;
     object-fit: contain;
-    margin-right:20px;
+    margin-right:40px;
     width:100px;
 }
 header .description p {
@@ -91,7 +94,11 @@ nav {
     text-align: center;
 }
 nav .row > div {
-    padding:10px;
+    padding:5px;
+    min-height:58px;
+    display:flex;
+    align-items: center;
+    justify-content: center;
 }
 nav a {
     color:white;
