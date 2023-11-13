@@ -65,26 +65,27 @@ header .quick-link {
     align-items:center;
     justify-content:center;
 }
-header .quick-link a {
+.phone-number {
     color:white;
     text-decoration: none;
     line-height:1.75em;
 }
-#book-now-header {
+.book-now {
     color:#60c0ff;
     text-decoration: none;
+    margin-right:3px;
 }
-#book-now-header:hover {
+.book-now:hover {
     color:#40a0e0;
 }
-#book-now-header::after {
+.book-now::after {
     position:relative;
     left:0px;
     content: " >";
     transition:.25s left ease-out;
 }
-#book-now-header:hover::after {
-    left:5px;
+.book-now:hover::after {
+    left:3px;
 }
 
 
