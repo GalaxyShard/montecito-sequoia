@@ -14,6 +14,10 @@
 :root {
     background-color: #004000;
 }
+body {
+    background-color: #ffffff;
+    min-height:100vh;
+}
 .max-size {
     max-width:900px;
     box-sizing:border-box;
@@ -184,10 +188,21 @@ nav a:hover {
 
 
 
+body {
+    position:relative;
+    padding-bottom:200px;
+}
 footer {
     background-color: #8B4513;
     color:white;
     text-align: center;
+
+    height:200px;
+
+    position:absolute;
+    bottom:0;
+    left:0;
+    right:0;
 }
 footer a {
     color:white;
