@@ -38,11 +38,14 @@ h1,h2,h3,h4,h5,h6 {
     display:block;
     padding:10px 20px;
     border-radius: 5px;
-    background-color: #8B4513;
+
+    background-color: #7B3503;
     color:white;
 
     text-decoration: none;
     text-align: center;
+
+    height:100%;
 }
 
 
@@ -109,6 +112,9 @@ nav {
     background-color: #8B4513;
     text-align: center;
 }
+/* nav .row {
+    justify-content: center;
+} */
 nav .row > div {
     padding:5px;
     min-height:58px;
@@ -194,6 +200,10 @@ nav a:hover {
 
 
 
+.activity {
+    display:block;
+    font-weight:bold;
+}
 .testimonial-name {
     display:block;
     font-style:italic;
