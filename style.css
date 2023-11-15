@@ -34,6 +34,16 @@ h1,h2,h3,h4,h5,h6 {
 .cursive {
     font-family:DancingScript, cursive;
 }
+.link-button {
+    display:block;
+    padding:10px 20px;
+    border-radius: 5px;
+    background-color: #8B4513;
+    color:white;
+
+    text-decoration: none;
+    text-align: center;
+}
 
 
 
@@ -74,6 +84,7 @@ header .quick-link {
     text-decoration: none;
     line-height:1.75em;
 }
+
 .book-now {
     color:#60c0ff;
     text-decoration: none;
@@ -82,13 +93,13 @@ header .quick-link {
 .book-now:hover {
     color:#40a0e0;
 }
-.book-now::after {
+.book-now::after, .link-arrow::after {
     position:relative;
     left:0px;
     content: " >";
     transition:.25s left ease-out;
 }
-.book-now:hover::after {
+.book-now:hover::after, .link-arrow:hover::after {
     left:3px;
 }
 
@@ -117,7 +128,7 @@ nav a:hover {
 
 #hero-container {
     position:relative;
-    height:280px;
+    height:calc(280px + 5vw);
     overflow:hidden;
 }
 #hero-container > div {
@@ -177,6 +188,12 @@ nav a:hover {
 
 
 
+.row {
+    --bs-gutter-x:0;
+}
+
+
+
 .testimonial-name {
     display:block;
     font-style:italic;
@@ -190,14 +207,12 @@ nav a:hover {
 
 body {
     position:relative;
-    padding-bottom:200px;
+    padding-bottom:250px;
 }
 footer {
     background-color: #8B4513;
     color:white;
     text-align: center;
-
-    height:200px;
 
     position:absolute;
     bottom:0;
