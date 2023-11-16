@@ -112,9 +112,9 @@ nav {
     background-color: #8B4513;
     text-align: center;
 }
-/* nav .row {
+nav .row {
     justify-content: center;
-} */
+}
 nav .row > div {
     padding:5px;
     min-height:58px;

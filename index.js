@@ -39,4 +39,4 @@ function prepareNextImage() {
 setTimeout(() => {
     prepareNextImage();
     setInterval(prepareNextImage, 4000);
-}, 2000);
+}, 1000);
