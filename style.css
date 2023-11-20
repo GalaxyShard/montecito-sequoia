@@ -126,9 +126,27 @@ nav a {
     color:white;
     text-decoration: none;
 }
-nav a:hover {
-    color: #dddddd;
+nav > .row > div {
+    position:relative;
 }
+nav > .row > div::after {
+    display:block;
+    height:100%;
+    /* position:absolute;
+    display:block;
+    bottom:0;
+    top:0;
+    left:0;
+    right:0; */
+
+    background-color:white;
+    width:0px;
+    height:1px;
+    transition:width .25s ease;
+}
+/* nav > .row > div:has(a[active])::after, nav > .row > div:has(a:hover)::after {
+    width:100%;
+} */
 
 
 
