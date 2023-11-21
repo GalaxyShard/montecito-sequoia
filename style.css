@@ -88,10 +88,12 @@ header .quick-link {
     line-height:1.75em;
 }
 
-.book-now {
-    color:#60c0ff;
+.link-arrow, .book-now {
     text-decoration: none;
     margin-right:3px;
+}
+.book-now {
+    color:#60c0ff;
 }
 .book-now:hover {
     color:#40a0e0;
@@ -165,6 +167,14 @@ nav a:hover::after, nav a[active]::after {
 #hero-container > .current {
     opacity:1;
 }
+/* #hero-container-2 {
+    position:relative;
+    height:calc(280px + 5vw);
+    overflow:hidden;
+}
+#hero-container-2::before {
+    content:"";
+} */
 .hero-background {
     position:absolute;
     width:calc(100% + 20px);
