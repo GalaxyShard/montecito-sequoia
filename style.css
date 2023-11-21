@@ -125,28 +125,25 @@ nav .row > div {
 nav a {
     color:white;
     text-decoration: none;
+    display:block;
 }
 nav > .row > div {
     position:relative;
 }
-nav > .row > div::after {
-    display:block;
-    height:100%;
-    /* position:absolute;
-    display:block;
-    bottom:0;
-    top:0;
-    left:0;
-    right:0; */
-
+nav a::after {
+    content: "";
     background-color:white;
+    display:block;
+
+    margin:0 auto;
     width:0px;
     height:1px;
+    
     transition:width .25s ease;
 }
-/* nav > .row > div:has(a[active])::after, nav > .row > div:has(a:hover)::after {
+nav a:hover::after, nav a[active]::after {
     width:100%;
-} */
+}
 
 
 
