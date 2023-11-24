@@ -27,9 +27,8 @@ function prepareNextImage() {
         prev = heroItems[0];
     }
     let nextImg = `assets/hero/${images[count % images.length]}`;
-    for (let imgNode of current.children) {
-        imgNode.src = nextImg;
-    }
+    current.style.setProperty("--image", `url(${nextImg})`)
+    
     setTimeout(() => {
         current.classList.add("current");
         prev.classList.remove("current");
