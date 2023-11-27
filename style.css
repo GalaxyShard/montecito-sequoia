@@ -44,8 +44,6 @@ h1,h2,h3,h4,h5,h6 {
 
     text-decoration: none;
     text-align: center;
-
-    height:100%;
 }
 
 
@@ -264,6 +262,8 @@ div[data-image]::after {
     color:white;
     border-radius:5px;
     border:3px solid #004000;
+
+    text-align: center;
 }
 .room-options div[data-image] {
     /* 200px, plus 10% of the main content's width (max 900px) */
@@ -272,7 +272,15 @@ div[data-image]::after {
     margin:10px 0;
     --image-max:600px;
 }
-
+.room-options ul {
+    list-style: none;
+}
+/* .room-options .row {
+    align-items:center;
+} */
+.room-options a {
+    background-color: #004000;
+}
 
 
 body {
