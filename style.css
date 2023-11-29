@@ -48,11 +48,12 @@ h1,h2,h3,h4,h5,h6 {
     color:white;
 }
 .link-button-warning {
-    background-color: #fff3cd;
-    color:black;
+    background-color: #ffffff;
+    color:#c00000;
 }
 .link-button-tree {
     background-color: #004000;
+    color:white;
 }
 
 
@@ -284,9 +285,10 @@ div[data-image]::after {
 .room-options ul {
     list-style: none;
 }
-/* .room-options .row {
-    align-items:center;
-} */
+.room-options .row > div {
+    /* align-items:center; */
+    padding:5px 0px;
+}
 
 
 body {
