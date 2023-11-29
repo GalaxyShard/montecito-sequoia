@@ -34,16 +34,25 @@ h1,h2,h3,h4,h5,h6 {
 .cursive {
     font-family:DancingScript, cursive;
 }
-.link-button {
+.link-button-log, .link-button-warning, .link-button-tree {
     display:block;
     padding:10px 20px;
     border-radius: 5px;
 
-    background-color: #7B3503;
-    color:white;
-
+    
     text-decoration: none;
     text-align: center;
+}
+.link-button-log {
+    background-color: #7B3503;
+    color:white;
+}
+.link-button-warning {
+    background-color: #fff3cd;
+    color:black;
+}
+.link-button-tree {
+    background-color: #004000;
 }
 
 
@@ -278,9 +287,6 @@ div[data-image]::after {
 /* .room-options .row {
     align-items:center;
 } */
-.room-options a {
-    background-color: #004000;
-}
 
 
 body {
