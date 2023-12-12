@@ -110,7 +110,7 @@ header .quick-link {
 .book-now::after, .link-arrow::after {
     position:relative;
     left:0px;
-    content: " >";
+    content: "\a0>";
     transition:.25s left ease-out;
 }
 .book-now:hover::after, .link-arrow:hover::after {
