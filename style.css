@@ -34,7 +34,7 @@ h1,h2,h3,h4,h5,h6 {
 .cursive {
     font-family:DancingScript, cursive;
 }
-.link-button-log, .link-button-warning, .link-button-tree {
+.link-button-log {
     display:block;
     padding:10px 20px;
     border-radius: 5px;
@@ -45,14 +45,6 @@ h1,h2,h3,h4,h5,h6 {
 }
 .link-button-log {
     background-color: #7B3503;
-    color:white;
-}
-.link-button-warning {
-    background-color: #ffffff;
-    color:#c00000;
-}
-.link-button-tree {
-    background-color: #004000;
     color:white;
 }
 
@@ -99,6 +91,9 @@ header .quick-link {
 
 .link-arrow, .book-now {
     text-decoration: none;
+}
+/* margin exists to offset any text proceeding it, which does not apply to .link-button-log and .book-now */
+.link-arrow:not(.link-button-log) {
     margin-right:3px;
 }
 .book-now {
