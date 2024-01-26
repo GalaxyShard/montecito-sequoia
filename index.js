@@ -49,7 +49,7 @@ function prepareNextImage() {
         current = heroItems[1];
         prev = heroItems[0];
     }
-    let nextImg = `assets/hero/${images[count % images.length]}`;
+    let nextImg = `/assets/hero/${images[count % images.length]}`;
     current.style.setProperty("--image", `url(${nextImg})`)
     
     setTimeout(() => {

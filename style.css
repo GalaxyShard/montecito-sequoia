@@ -2,7 +2,7 @@
     font-family: DancingScript;
     font-weight: normal;
     font-style: normal;
-    src: url("assets/dancing-script.woff2") format("woff2");
+    src: url("/assets/dancing-script.woff2") format("woff2");
 }
 
 /*
@@ -191,15 +191,16 @@ nav a:hover::after, nav a[data-current]::after {
 }
 
 
-div[data-image] {
+[data-image] {
     width:100%;
     /* height */
 
     position:relative;
     overflow:hidden;
+    display:block;
 
 }
-div[data-image]::before {
+[data-image]::before {
     display:block;
     
     --inset:-10px;
@@ -218,7 +219,7 @@ div[data-image]::before {
     background-image:var(--image);
     content: "";
 }
-div[data-image]::after {
+[data-image]::after {
     display:block;
 
     position:absolute;
@@ -288,7 +289,7 @@ div[data-image]::after {
 
     text-align: center;
 }
-.room-options div[data-image] {
+.room-options [data-image] {
     /* 200px, plus 10% of the main content's width (max 900px) */
     height:calc(200px + min(10vw, 900px * 0.1));
     border-radius:5px;
