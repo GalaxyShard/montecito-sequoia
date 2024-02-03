@@ -11,6 +11,7 @@
 .editor-container {
     margin:1em 0;
     border:1px solid black;
+    border-radius:5px;
 
     display:flex;
     flex-direction: column;
@@ -23,18 +24,23 @@
     background-color: #f0f0f0;
     border:none;
 
+    white-space: pre-line;
+    padding:2px;
+    border-radius:5px 5px 0px 0px;
 }
 
 .editor-toolbar {
     display:flex;
+    flex-wrap:wrap;
     flex-direction: row;
     justify-content: space-around;
 }
 .editor-toolbar > button {
+    flex-grow:1;
     background-color: white;
     border:none;
     text-align: center;
-    padding:5px;
+    padding:5px 10px;
     margin:5px;
     border-radius:5px;
     min-width:40px;
@@ -50,4 +56,19 @@
 }
 .editor-italic, .editor-em {
     font-style:italic;
+}
+.editor-cancel {
+    color:red;
+}
+.editor-save {
+    color:#007bff;
+}
+.editor-link {
+    color:#007bff;
+}
+.editor-link::after {
+    display:inline-block;
+    transform:translateX(0);
+
+    content: "\a0>";
 }
