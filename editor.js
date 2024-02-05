@@ -23,65 +23,52 @@
  *
  */
 
-let isEditing = false;
-function removeHoverToolbar(para) {
-    let buttons = para.getElementsByClassName("editor-button");
-    if (buttons) {
-        buttons[0].remove();
+import "https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.0/dist/quill.js";
+
+/**
+ * @param {HTMLElement} element
+ */
+function removeHoverToolbar(element) {
+    let buttons = element.getElementsByClassName("editor-button");
+    for (let button of buttons) {
+        button.remove();
     }
 }
-
-function createEditorBox(para) {
+function createEditorBox(element) {
     let container = document.createElement("div");
     container.classList.add("editor-container");
 
     let editor = document.createElement("div");
     editor.classList.add("editor");
-    editor.contentEditable = "true";
-    editor.addEventListener("beforeinput", e => {
-        // e.preventDefault();
-    });
-    editor.addEventListener("input", e => {
-        // console.log(editor.value);
-        // editor.innerHTML = editor.innerHTML.replace(/(\n|<br>){2,}/g, "\n");
-    });
-    // editor.addEventListener("paste", e => {
-    //     console.log("paste, ", e);
-    // });
 
 
 
     let toolbar = document.createElement("div");
     toolbar.classList.add("editor-toolbar");
 
-    let bold = document.createElement("button");
-    bold.classList.add("editor-bold");
-    bold.textContent = "Bold";
-    bold.addEventListener("click", e => {
-
-    });
-
-    let italic = document.createElement("button");
-    italic.classList.add("editor-italic");
-    italic.textContent = "Italic";
-    italic.addEventListener("click", e => {
-
-    });
-
-    let link = document.createElement("button");
-    link.classList.add("editor-link");
-    link.textContent = "Link";
-    link.addEventListener("click", e => {
-
-    });
-
     let cancel = document.createElement("button");
     cancel.classList.add("editor-cancel");
     cancel.textContent = "Cancel";
+
     cancel.addEventListener("click", e => {
-        let para = document.createElement("p");
-        para.innerHTML = container.dataset.original;
-        container.parentElement.replaceChild(para, container);
+        if (!cancel.dataset.clicked || cancel.dataset.clicked === "false") {
+            cancel.dataset.clicked = "true";
+            cancel.textContent = "Confirm";
+
+            setTimeout(() => {
+                if (cancel && cancel.dataset.clicked) {
+                    cancel.dataset.clicked = "false";
+                    cancel.textContent = "Cancel";
+                }
+            }, 3000);
+
+            return;
+        }
+        cancel.dataset.clicked = "false";
+        let element = document.createElement(container.dataset.originalTag);
+        setupElementEditing(element);
+        element.innerHTML = container.dataset.original;
+        container.parentElement.replaceChild(element, container);
     });
 
     let save = document.createElement("button");
@@ -93,36 +80,45 @@ function createEditorBox(para) {
 
 
 
-    removeHoverToolbar(para);
-    container.dataset.original = para.innerHTML;
-    let text = para.innerHTML.trim();
-    text = text.replace(/(\n|<br>){2,}/g, "\n");
+    removeHoverToolbar(element);
+    container.dataset.original = element.innerHTML;
+    container.dataset.originalTag = element.tagName;
+    editor.innerHTML = element.innerHTML;
 
-    editor.innerHTML = text;
-
-    toolbar.append(bold, italic, link, cancel, save);
+    toolbar.append(cancel, save);
     container.append(editor, toolbar);
-    para.parentElement.replaceChild(container, para);
+    let _ = new Quill(editor, {
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, 4, 5, false] }],
+            ["bold", "italic"],
+            ["image", "link"],
+            ["clean"],
+          ]
+        },
+        theme: "snow",
+    });
+    element.parentElement.replaceChild(container, element);
 }
 
-for (let p of document.getElementsByTagName("p")) {
-    p.addEventListener("mouseenter", _ => {
-
+/**
+ * @param {HTMLElement} element 
+ */
+function setupElementEditing(element) {
+    element.addEventListener("mouseenter", _ => {
         let editButton = document.createElement("button");
         editButton.textContent = "Edit";
         editButton.classList.add("editor-button");
-
         editButton.addEventListener("click", _ => {
-            if (isEditing) {
-                return;
-            }
-            // isEditing = true;
-            createEditorBox(p);
+            createEditorBox(element);
         });
         
-        p.append(editButton);
+        element.append(editButton);
     });
-    p.addEventListener("mouseleave", _ => {
-        removeHoverToolbar(p);
+    element.addEventListener("mouseleave", _ => {
+        removeHoverToolbar(element);
     });
+}
+for (let p of document.getElementsByTagName("p")) {
+    setupElementEditing(p);
 }

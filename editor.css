@@ -1,4 +1,4 @@
-
+@import url("https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.0/dist/quill.snow.css");
 .editor-button {
     font-style: italic;
     color:#007bff;
@@ -17,15 +17,15 @@
     flex-direction: column;
 }
 .editor {
-    display: block;
     width:100%;
     min-height:150px;
     
     background-color: #f0f0f0;
     border:none;
-
-    white-space: pre-line;
     padding:2px;
+    font-size:1rem;
+}
+.ql-toolbar {
     border-radius:5px 5px 0px 0px;
 }
 
@@ -51,24 +51,9 @@
 .editor-toolbar > button:active {
     background-color: #e0e0e0;
 }
-.editor-bold, .editor-strong {
-    font-weight: bold;
-}
-.editor-italic, .editor-em {
-    font-style:italic;
-}
 .editor-cancel {
     color:red;
 }
 .editor-save {
     color:#007bff;
-}
-.editor-link {
-    color:#007bff;
-}
-.editor-link::after {
-    display:inline-block;
-    transform:translateX(0);
-
-    content: "\a0>";
 }
