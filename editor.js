@@ -41,8 +41,8 @@ const QuillImports = {
     header: Quill.import("formats/header"),
 }
 
-const registry = new Parchment.Registry();
-registry.register(
+const generalRegistry = new Parchment.Registry();
+generalRegistry.register(
     QuillImports.block,
     QuillImports.break,
     QuillImports.container,
@@ -61,21 +61,29 @@ registry.register(
  * @param {HTMLElement} element
  */
 function removeHoverToolbar(element) {
-    let buttons = element.getElementsByClassName("editor-button");
-    for (let button of buttons) {
-        button.remove();
+    let containers = element.getElementsByClassName("editor-hover-container");
+    for (let container of containers) {
+        container.remove();
     }
 }
 /**
  * @param {HTMLElement} element
  */
 function createEditorBox(element) {
+    removeHoverToolbar(element);
+
     let container = document.createElement("div");
     container.classList.add("editor-container");
 
     let editor = document.createElement("div");
     editor.classList.add("editor");
-
+    
+    let contents = document.createElement(element.tagName);
+    if (element.href) contents.href = element.href;
+    if (element.id) contents.id = element.id;
+    if (element.dataset.uneditable) contents.dataset.uneditable = element.dataset.uneditable;
+    contents.innerHTML = element.innerHTML.trim();
+    editor.append(contents);
 
 
     let toolbar = document.createElement("div");
@@ -100,9 +108,15 @@ function createEditorBox(element) {
             return;
         }
         cancel.dataset.clicked = "false";
-        let element = document.createElement(container.dataset.originalTag);
-        setupElementEditing(element);
+        let element = document.createElement(container.dataset.tag);
+        
         element.innerHTML = container.dataset.original;
+        element.classList = container.dataset.classes;
+        if (container.dataset.id) element.id = container.dataset.id;
+        if (container.dataset.href) element.href = container.dataset.href;
+        
+        setupElementEditing(element);
+
         container.parentElement.replaceChild(element, container);
     });
 
@@ -115,10 +129,11 @@ function createEditorBox(element) {
 
 
 
-    removeHoverToolbar(element);
     container.dataset.original = element.innerHTML;
-    container.dataset.originalTag = element.tagName;
-    editor.innerHTML = element.innerHTML;
+    container.dataset.tag = element.tagName;
+    container.dataset.classes = element.classList;
+    container.dataset.id = element.id;
+    container.dataset.href = element.href;
 
     toolbar.append(cancel, save);
     container.append(editor, toolbar);
@@ -131,7 +146,7 @@ function createEditorBox(element) {
             ["clean"],
           ]
         },
-        registry,
+        registry: generalRegistry,
         theme: "snow",
     });
     element.parentElement.replaceChild(container, element);
@@ -141,7 +156,15 @@ function createEditorBox(element) {
  * @param {HTMLElement} element 
  */
 function setupElementEditing(element) {
+    if (element.dataset.uneditable) {
+        return;
+    }
+
     element.addEventListener("mouseenter", _ => {
+        let container = document.createElement("span");
+        container.classList.add("editor-hover-container");
+        // let seperator = document.createTextNode(" | ");
+
         let editButton = document.createElement("button");
         editButton.textContent = "Edit";
         editButton.classList.add("editor-button");
@@ -149,7 +172,8 @@ function setupElementEditing(element) {
             createEditorBox(element);
         });
         
-        element.append(editButton);
+        container.append(document.createTextNode(" "), editButton);
+        element.append(container);
     });
     element.addEventListener("mouseleave", _ => {
         removeHoverToolbar(element);
@@ -157,4 +181,13 @@ function setupElementEditing(element) {
 }
 for (let p of document.getElementsByTagName("p")) {
     setupElementEditing(p);
+}
+for (let e of document.getElementsByClassName("link-button-log")) {
+    setupElementEditing(e);
+}
+for (let e of document.querySelectorAll("[data-editable]")) {
+    setupElementEditing(e);
+}
+for (let h of document.querySelectorAll("h1,h2,h3,h4,h5")) {
+    setupElementEditing(h);
 }
