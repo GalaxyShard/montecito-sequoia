@@ -25,6 +25,38 @@
 
 import "https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.0/dist/quill.js";
 
+const Parchment = Quill.import("parchment");
+const QuillImports = {
+    block: Quill.import("blots/block"),
+    break: Quill.import("blots/break"),
+    container: Quill.import("blots/container"),
+    cursor: Quill.import("blots/cursor"),
+    inline: Quill.import("blots/inline"),
+    scroll: Quill.import("blots/scroll"),
+    text: Quill.import("blots/text"),
+
+    bold: Quill.import("formats/bold"),
+    italic: Quill.import("formats/italic"),
+    link: Quill.import("formats/link"),
+    header: Quill.import("formats/header"),
+}
+
+const registry = new Parchment.Registry();
+registry.register(
+    QuillImports.block,
+    QuillImports.break,
+    QuillImports.container,
+    QuillImports.cursor,
+    QuillImports.inline,
+    QuillImports.scroll,
+    QuillImports.text,
+
+    QuillImports.bold,
+    QuillImports.italic,
+    QuillImports.link,
+    QuillImports.header,
+);
+
 /**
  * @param {HTMLElement} element
  */
@@ -34,6 +66,9 @@ function removeHoverToolbar(element) {
         button.remove();
     }
 }
+/**
+ * @param {HTMLElement} element
+ */
 function createEditorBox(element) {
     let container = document.createElement("div");
     container.classList.add("editor-container");
@@ -87,15 +122,16 @@ function createEditorBox(element) {
 
     toolbar.append(cancel, save);
     container.append(editor, toolbar);
+    
     let _ = new Quill(editor, {
         modules: {
           toolbar: [
             [{ header: [1, 2, 3, 4, 5, false] }],
-            ["bold", "italic"],
-            ["image", "link"],
+            ["bold", "italic", "link"],
             ["clean"],
           ]
         },
+        registry,
         theme: "snow",
     });
     element.parentElement.replaceChild(container, element);
