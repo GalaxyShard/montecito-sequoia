@@ -60,15 +60,6 @@ generalRegistry.register(
 /**
  * @param {HTMLElement} element
  */
-function removeHoverToolbar(element) {
-    let containers = element.getElementsByClassName("editor-hover-container");
-    for (let container of containers) {
-        container.remove();
-    }
-}
-/**
- * @param {HTMLElement} element
- */
 function createEditorBox(element) {
     removeHoverToolbar(element);
 
@@ -153,27 +144,44 @@ function createEditorBox(element) {
 }
 
 /**
+ * @param {HTMLElement} element
+ */
+function removeHoverToolbar(element) {
+    let containers = element.getElementsByClassName("editor-hover-container");
+    for (let container of containers) {
+        container.remove();
+    }
+}
+
+/**
+ * @param {HTMLElement} element
+ */
+function createHoverToolbar(element) {
+    let container = document.createElement("span");
+    container.classList.add("editor-hover-container");
+    // let seperator = document.createTextNode(" | ");
+
+    let editButton = document.createElement("button");
+    editButton.textContent = "Edit";
+    editButton.classList.add("editor-button");
+    editButton.addEventListener("click", _ => {
+        createEditorBox(element);
+    });
+    
+    container.append(document.createTextNode(" "), editButton);
+    element.append(container);
+}
+
+/**
  * @param {HTMLElement} element 
  */
 function setupElementEditing(element) {
-    if (element.dataset.uneditable) {
+    if (element.dataset.uneditable !== undefined) {
         return;
     }
 
     element.addEventListener("mouseenter", _ => {
-        let container = document.createElement("span");
-        container.classList.add("editor-hover-container");
-        // let seperator = document.createTextNode(" | ");
-
-        let editButton = document.createElement("button");
-        editButton.textContent = "Edit";
-        editButton.classList.add("editor-button");
-        editButton.addEventListener("click", _ => {
-            createEditorBox(element);
-        });
-        
-        container.append(document.createTextNode(" "), editButton);
-        element.append(container);
+        createHoverToolbar(element);
     });
     element.addEventListener("mouseleave", _ => {
         removeHoverToolbar(element);
