@@ -3,10 +3,13 @@
     font-style: italic;
     color:#007bff;
     border:none;
-    background-color: #00000000;
     padding:0;
     margin:0;
     
+}
+.editor-hover-element {
+    border:1px dashed #007bff;
+    margin-bottom:0px;
 }
 .editor-container {
     margin:1em 0;
