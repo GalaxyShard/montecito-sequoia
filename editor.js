@@ -102,12 +102,13 @@ function createEditorBox(element) {
         let element = document.createElement(container.dataset.tag);
         
         element.innerHTML = container.dataset.original;
-        element.classList = container.dataset.classes;
-        if (container.dataset.id) element.id = container.dataset.id;
-        if (container.dataset.href) element.href = container.dataset.href;
-        
+        for (const attr of JSON.parse(container.dataset.attributes)) {
+            element.setAttribute(
+                attr[0],
+                attr[1],
+            );
+        }
         setupElementEditing(element);
-
         container.parentElement.replaceChild(element, container);
     });
 
@@ -121,10 +122,12 @@ function createEditorBox(element) {
 
 
     container.dataset.original = element.innerHTML;
+    let attributes = [];
+    for (const attr of element.attributes) {
+        attributes.push([attr.nodeName, attr.nodeValue]);
+    }
+    container.dataset.attributes = JSON.stringify(attributes);
     container.dataset.tag = element.tagName;
-    container.dataset.classes = element.classList;
-    container.dataset.id = element.id;
-    container.dataset.href = element.href;
 
     toolbar.append(cancel, save);
     container.append(editor, toolbar);
