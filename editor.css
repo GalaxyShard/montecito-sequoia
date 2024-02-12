@@ -10,6 +10,8 @@
 .editor-hover-element {
     outline:2px dashed #007bff;
     outline-offset:1px;
+}
+p.editor-hover-element {
     margin-bottom:0px;
 }
 .editor-container {
@@ -25,18 +27,16 @@
 }
 .editor {
     width:100%;
-    min-height:150px;
+    border-radius:5px;
     
     background-color: #f0f0f0;
-    border:none;
     padding:2px;
-    font-size:1rem;
+}
+.editor > div {
+    outline:none;
 }
 .editor-container > input {
     width:100%;
-}
-.ql-toolbar {
-    border-radius:5px 5px 0px 0px;
 }
 
 .editor-toolbar {
@@ -70,7 +70,7 @@
 
 
 /* Values taken from Bootstrap (MIT licensed) */
-.editor h1 { font-size: calc(1.375rem + 1.5vw) !important; }
+/* .editor h1 { font-size: calc(1.375rem + 1.5vw) !important; }
 .editor h2 { font-size: calc(1.325rem + 0.9vw) !important; }
 .editor h3 { font-size: calc(1.3rem + 0.6vw) !important; }
 .editor h4 { font-size: calc(1.275rem + 0.3vw) !important; }
@@ -81,4 +81,4 @@
     .editor h2 { font-size: 2rem !important; }
     .editor h3 { font-size: 1.75rem !important; }
     .editor h4 { font-size: 1.5rem !important; }
-}
+} */

@@ -23,39 +23,21 @@
  *
  */
 
-import "https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.0/dist/quill.js";
+import { Editor } from 'https://esm.sh/@tiptap/core'
+import Document from 'https://esm.sh/@tiptap/extension-document'
+import Paragraph from 'https://esm.sh/@tiptap/extension-paragraph'
+import Text from 'https://esm.sh/@tiptap/extension-text'
+import BulletList from 'https://esm.sh/@tiptap/extension-bullet-list'
+import ListItem from 'https://esm.sh/@tiptap/extension-list-item'
+import HardBreak from 'https://esm.sh/@tiptap/extension-hard-break'
+import Heading from 'https://esm.sh/@tiptap/extension-heading'
+import Bold from 'https://esm.sh/@tiptap/extension-bold'
+import Italic from 'https://esm.sh/@tiptap/extension-italic'
+import Link from 'https://esm.sh/@tiptap/extension-link'
 
-const Parchment = Quill.import("parchment");
-const QuillImports = {
-    block: Quill.import("blots/block"),
-    break: Quill.import("blots/break"),
-    container: Quill.import("blots/container"),
-    cursor: Quill.import("blots/cursor"),
-    inline: Quill.import("blots/inline"),
-    scroll: Quill.import("blots/scroll"),
-    text: Quill.import("blots/text"),
-
-    bold: Quill.import("formats/bold"),
-    italic: Quill.import("formats/italic"),
-    link: Quill.import("formats/link"),
-    header: Quill.import("formats/header"),
-}
-
-const generalRegistry = new Parchment.Registry();
-generalRegistry.register(
-    QuillImports.block,
-    QuillImports.break,
-    QuillImports.container,
-    QuillImports.cursor,
-    QuillImports.inline,
-    QuillImports.scroll,
-    QuillImports.text,
-
-    QuillImports.bold,
-    QuillImports.italic,
-    QuillImports.link,
-    QuillImports.header,
-);
+Heading.configure({
+    levels: [1, 2, 3, 4, 5],
+  })
 
 /**
  * @param {HTMLElement} element
@@ -100,12 +82,9 @@ function createTextEditor(element) {
     let editor = document.createElement("div");
     editor.classList.add("editor");
     
-    let contents = document.createElement(element.tagName);
-    if (element.href) contents.href = element.href;
-    if (element.id) contents.id = element.id;
-    if (element.dataset.uneditable) contents.dataset.uneditable = element.dataset.uneditable;
-    contents.innerHTML = element.innerHTML.trim();
-    editor.append(contents);
+    // let contents = document.createElement(element.tagName);
+    // if (element.href) contents.href = element.href;
+    // contents.innerHTML = element.innerHTML.trim();
 
 
 
@@ -152,19 +131,17 @@ function createTextEditor(element) {
 
     toolbar.append(cancel, save);
     container.append(editor, toolbar);
-    
-    let _ = new Quill(editor, {
-        modules: {
-            toolbar: [
-                [{ header: [1, 2, 3, 4, 5, false] }],
-                ["bold", "italic", "link"],
-                ["clean"],
-            ],
-        },
-        registry: generalRegistry,
-        theme: "snow",
-    });
+
+    let editorInstance = new Editor({
+        element: editor,
+        extensions: [
+            Document, Paragraph, Text, BulletList, ListItem, HardBreak, Bold, Italic, Link
+        ],
+        content: element.innerHTML.trim(),
+    })
     element.parentElement.replaceChild(container, element);
+
+    editorInstance.commands.focus("end");
 }
 
 
