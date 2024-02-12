@@ -105,6 +105,32 @@ function createToolbar(onCancel, onSave) {
 
 /**
  * @param {HTMLElement} element
+ * @returns {string}
+ */
+function encodeAttributes(element) {
+    let attributes = [];
+    for (const attr of element.attributes) {
+        attributes.push([attr.nodeName, attr.nodeValue]);
+    }
+    return JSON.stringify(attributes);
+}
+/**
+ * @param {HTMLElement} element
+ * @param {string} attributes
+ */
+function decodeAttributes(element, attributes) {
+    for (const attr of JSON.parse(attributes)) {
+        element.setAttribute(
+            attr[0],
+            attr[1],
+        );
+    }
+}
+
+
+
+/**
+ * @param {HTMLElement} element
  */
 function createTextEditor(element) {
     removeHoverToolbar(element);
@@ -115,18 +141,31 @@ function createTextEditor(element) {
 
     function onCancel() {
         let element = document.createElement(container.dataset.tag);
+        decodeAttributes(element, container.dataset.attributes);
         
         element.innerHTML = container.dataset.original;
-        for (const attr of JSON.parse(container.dataset.attributes)) {
-            element.setAttribute(
-                attr[0],
-                attr[1],
-            );
-        }
+        
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
     }
-    function onSave() {
+    function onSave() {        
+        // convert html into a document fragment
+        const html = editorInstance.getHTML();
+        let frag = document.createDocumentFragment();
+        let temp = document.createElement('div');
+        temp.innerHTML = html;
+        while (temp.firstChild) {
+            frag.appendChild(temp.firstChild);
+        }
+        if (frag.children.length == 0) {
+            return;
+        }
+        
+        decodeAttributes(frag.firstChild, container.dataset.attributes);
+        for (let e of frag.children) {
+            setupElementEditing(e);
+        }
+        container.parentElement.replaceChild(frag, container);
 
     }
     let toolbar = createToolbar(onCancel, onSave);
@@ -137,11 +176,7 @@ function createTextEditor(element) {
 
 
     container.dataset.original = element.innerHTML;
-    let attributes = [];
-    for (const attr of element.attributes) {
-        attributes.push([attr.nodeName, attr.nodeValue]);
-    }
-    container.dataset.attributes = JSON.stringify(attributes);
+    container.dataset.attributes = encodeAttributes(element);
     container.dataset.tag = element.tagName;
 
     container.append(editorElement, toolbar);
@@ -187,26 +222,25 @@ function createImageEditor(element) {
     function onCancel() {
         let element = document.createElement(container.dataset.tag);
 
-        for (const attr of JSON.parse(container.dataset.attributes)) {
-            element.setAttribute(
-                attr[0],
-                attr[1],
-            );
-        }
+        decodeAttributes(element, container.dataset.attributes);
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
-        
     }
     function onSave() {
-        
+        let element = document.createElement(container.dataset.tag);
+
+        decodeAttributes(element, container.dataset.attributes);
+        if (isFittedImage) {
+            element.style.setProperty("--image", `url('${input.value}')`);
+        } else {
+            element.src = input.value;
+        }
+
+        setupElementEditing(element);
+        container.parentElement.replaceChild(element, container);
     }
     let toolbar = createToolbar(onCancel, onSave);
-
-    let attributes = [];
-    for (const attr of element.attributes) {
-        attributes.push([attr.nodeName, attr.nodeValue]);
-    }
-    container.dataset.attributes = JSON.stringify(attributes);
+    container.dataset.attributes = encodeAttributes(element);
     container.dataset.tag = element.tagName;
 
     inputLabel.append(document.createTextNode("Image Link"), input)
@@ -241,28 +275,28 @@ function createLinkEditor(element) {
 
     function onCancel() {
         let element = document.createElement("a");
-        element.textContent = container.dataset.original;
+        decodeAttributes(element, container.dataset.attributes);
 
-        for (const attr of JSON.parse(container.dataset.attributes)) {
-            element.setAttribute(
-                attr[0],
-                attr[1],
-            );
-        }
+        element.textContent = container.dataset.original;
+        
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
         
     }
     function onSave() {
+        let element = document.createElement("a");
+        decodeAttributes(element, container.dataset.attributes);
+        
+        element.textContent = text.value;
+        element.href = link.value;
+        
+        setupElementEditing(element);
+        container.parentElement.replaceChild(element, container);
         
     }
     let toolbar = createToolbar(onCancel, onSave);
 
-    let attributes = [];
-    for (const attr of element.attributes) {
-        attributes.push([attr.nodeName, attr.nodeValue]);
-    }
-    container.dataset.attributes = JSON.stringify(attributes);
+    container.dataset.attributes = encodeAttributes(element);
     container.dataset.original = element.textContent;
 
     textLabel.append(document.createTextNode("Text"), text);
@@ -309,7 +343,8 @@ function createHoverToolbar(element) {
         if (!cancelConfirmation(removeButton, "Remove")) {
             return;
         }
-        removeElement(element);
+        removeHoverToolbar(element);
+        element.remove();
     });
     container.append(removeButton);
 
@@ -372,9 +407,6 @@ for (let e of document.getElementsByTagName("hr")) {
     setupElementEditing(e);
 }
 for (let e of document.getElementsByClassName("link-button-log")) {
-    setupElementEditing(e);
-}
-for (let e of document.querySelectorAll("[data-editable]")) {
     setupElementEditing(e);
 }
 for (let e of document.querySelectorAll("h1,h2,h3,h4,h5")) {
