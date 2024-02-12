@@ -7,6 +7,9 @@
     margin:0;
     
 }
+hr { /* Make hr elements easier to click on in the editor */
+    padding:2px 0px;
+}
 .editor-hover-element {
     outline:2px dashed #007bff;
     outline-offset:1px;
@@ -35,7 +38,14 @@ p.editor-hover-element {
 .editor > div {
     outline:none;
 }
-.editor-container > input {
+.editor-container label {
+    display:block;
+    margin:5px 0;
+    padding:5px;
+    text-align: center;
+    line-height:2em;
+}
+.editor-container input {
     width:100%;
 }
 

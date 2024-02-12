@@ -37,7 +37,7 @@ import Link from 'https://esm.sh/@tiptap/extension-link'
 
 Heading.configure({
     levels: [1, 2, 3, 4, 5],
-  })
+})
 
 /**
  * @param {HTMLElement} element
@@ -48,9 +48,10 @@ function removeElement(element) {
 
 
 /**
- * @param {HTMLElement} element
+ * @param {HTMLElement} cancel
+ * @param {string} defaultText
  */
-function cancelConfirmation(cancel) {
+function cancelConfirmation(cancel, defaultText) {
     if (!cancel.dataset.clicked || cancel.dataset.clicked === "false") {
         cancel.dataset.clicked = "true";
         cancel.textContent = "Confirm?";
@@ -58,7 +59,7 @@ function cancelConfirmation(cancel) {
         setTimeout(() => {
             if (cancel && cancel.dataset.clicked) {
                 cancel.dataset.clicked = "false";
-                cancel.textContent = "Cancel";
+                cancel.textContent = defaultText;
             }
         }, 3000);
 
@@ -66,6 +67,38 @@ function cancelConfirmation(cancel) {
     }
     cancel.dataset.clicked = "false";
     return true;
+}
+
+
+
+/**
+ * @param {() => void} onCancel
+ * @param {() => void} onSave
+ */
+function createToolbar(onCancel, onSave) {
+    let toolbar = document.createElement("div");
+    toolbar.classList.add("editor-toolbar");
+
+    let cancel = document.createElement("button");
+    cancel.classList.add("editor-cancel");
+    cancel.textContent = "Cancel";
+
+    cancel.addEventListener("click", e => {
+        if (!cancelConfirmation(cancel, "Cancel")) {
+            return;
+        }
+        onCancel();
+    });
+
+    let save = document.createElement("button");
+    save.classList.add("editor-save");
+    save.textContent = "Save";
+    save.addEventListener("click", e => {
+        onSave();
+    });
+
+    toolbar.append(cancel, save);
+    return toolbar;
 }
 
 
@@ -79,26 +112,8 @@ function createTextEditor(element) {
     let container = document.createElement("div");
     container.classList.add("editor-container");
 
-    let editor = document.createElement("div");
-    editor.classList.add("editor");
-    
-    // let contents = document.createElement(element.tagName);
-    // if (element.href) contents.href = element.href;
-    // contents.innerHTML = element.innerHTML.trim();
 
-
-
-    let toolbar = document.createElement("div");
-    toolbar.classList.add("editor-toolbar");
-
-    let cancel = document.createElement("button");
-    cancel.classList.add("editor-cancel");
-    cancel.textContent = "Cancel";
-
-    cancel.addEventListener("click", e => {
-        if (!cancelConfirmation(cancel)) {
-            return;
-        }
+    function onCancel() {
         let element = document.createElement(container.dataset.tag);
         
         element.innerHTML = container.dataset.original;
@@ -110,14 +125,14 @@ function createTextEditor(element) {
         }
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
-    });
+    }
+    function onSave() {
 
-    let save = document.createElement("button");
-    save.classList.add("editor-save");
-    save.textContent = "Save";
-    save.addEventListener("click", e => {
+    }
+    let toolbar = createToolbar(onCancel, onSave);
 
-    });
+    let editorElement = document.createElement("div");
+    editorElement.classList.add("editor");
 
 
 
@@ -129,15 +144,14 @@ function createTextEditor(element) {
     container.dataset.attributes = JSON.stringify(attributes);
     container.dataset.tag = element.tagName;
 
-    toolbar.append(cancel, save);
-    container.append(editor, toolbar);
+    container.append(editorElement, toolbar);
 
     let editorInstance = new Editor({
-        element: editor,
+        element: editorElement,
         extensions: [
-            Document, Paragraph, Text, BulletList, ListItem, HardBreak, Bold, Italic, Link
+            Document, Paragraph, Text, BulletList, ListItem, HardBreak, Heading, Bold, Italic, Link
         ],
-        content: element.innerHTML.trim(),
+        content: element.outerHTML,
     })
     element.parentElement.replaceChild(container, element);
 
@@ -150,15 +164,18 @@ function createTextEditor(element) {
  * @param {HTMLImageElement | HTMLElement} element
  */
 function createImageEditor(element) {
-    // getAttribute instead of .src to get the raw text rather than the full evaluated path including domain name
-    let isFittedImage = element.getAttribute("src") == null;
     removeHoverToolbar(element);
-
+    
     let container = document.createElement("div");
     container.classList.add("editor-container");
-
+    
+    let inputLabel = document.createElement("label");
     let input = document.createElement("input");
     input.type = "text";
+    
+    // getAttribute instead of .src so that the domain name isn't inserted automatically
+    let isFittedImage = element.getAttribute("src") == null;
+
     if (isFittedImage) {
         let src = element.style.getPropertyValue("--image");
         src = src.substring(5, src.length-2); // remove url('____')
@@ -167,26 +184,9 @@ function createImageEditor(element) {
         input.value = element.getAttribute("src");
     }
 
-
-
-    let toolbar = document.createElement("div");
-    toolbar.classList.add("editor-toolbar");
-
-    let cancel = document.createElement("button");
-    cancel.classList.add("editor-cancel");
-    cancel.textContent = "Cancel";
-
-    cancel.addEventListener("click", e => {
-        if (!cancelConfirmation(cancel)) {
-            return;
-        }
+    function onCancel() {
         let element = document.createElement(container.dataset.tag);
-        
-        if (isFittedImage) {
-            element.style.setProperty("--image", container.dataset.original);
-        } else {
-            element.setAttribute("src", container.dataset.original);
-        }
+
         for (const attr of JSON.parse(container.dataset.attributes)) {
             element.setAttribute(
                 attr[0],
@@ -195,18 +195,13 @@ function createImageEditor(element) {
         }
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
-    });
+        
+    }
+    function onSave() {
+        
+    }
+    let toolbar = createToolbar(onCancel, onSave);
 
-    let save = document.createElement("button");
-    save.classList.add("editor-save");
-    save.textContent = "Save";
-    save.addEventListener("click", e => {
-
-    });
-    
-
-
-    container.dataset.original = isFittedImage ? element.style.getPropertyValue("--image") : element.getAttribute("src");
     let attributes = [];
     for (const attr of element.attributes) {
         attributes.push([attr.nodeName, attr.nodeValue]);
@@ -214,11 +209,70 @@ function createImageEditor(element) {
     container.dataset.attributes = JSON.stringify(attributes);
     container.dataset.tag = element.tagName;
 
-    toolbar.append(cancel, save);
-    container.append(input, toolbar);
+    inputLabel.append(document.createTextNode("Image Link"), input)
+    container.append(inputLabel, toolbar);
+
+    element.parentElement.replaceChild(container, element);
+    
+    input.focus();
+}
+
+
+
+/**
+ * @param {HTMLImageElement | HTMLElement} element
+ */
+function createLinkEditor(element) {
+    removeHoverToolbar(element);
+    
+    let container = document.createElement("div");
+    container.classList.add("editor-container");
+    
+    let textLabel = document.createElement("label");
+    let text = document.createElement("input");
+    text.type = "text";
+    text.value = element.textContent;
+    
+    let linkLabel = document.createElement("label");
+    let link = document.createElement("input");
+    link.type = "text";
+    // getAttribute instead of .href so that the domain name isn't inserted automatically
+    link.value = element.getAttribute("href");
+
+    function onCancel() {
+        let element = document.createElement("a");
+        element.textContent = container.dataset.original;
+
+        for (const attr of JSON.parse(container.dataset.attributes)) {
+            element.setAttribute(
+                attr[0],
+                attr[1],
+            );
+        }
+        setupElementEditing(element);
+        container.parentElement.replaceChild(element, container);
+        
+    }
+    function onSave() {
+        
+    }
+    let toolbar = createToolbar(onCancel, onSave);
+
+    let attributes = [];
+    for (const attr of element.attributes) {
+        attributes.push([attr.nodeName, attr.nodeValue]);
+    }
+    container.dataset.attributes = JSON.stringify(attributes);
+    container.dataset.original = element.textContent;
+
+    textLabel.append(document.createTextNode("Text"), text);
+    linkLabel.append(document.createTextNode("Page Link"), link);
+
+    container.append(textLabel, linkLabel, toolbar);
 
     element.parentElement.replaceChild(container, element);
 }
+
 
 
 
@@ -252,20 +306,9 @@ function createHoverToolbar(element) {
     removeButton.classList.add("editor-button");
     removeButton.classList.add("editor-cancel");
     removeButton.addEventListener("click", _ => {
-        if (!removeButton.dataset.clicked || removeButton.dataset.clicked === "false") {
-            removeButton.dataset.clicked = "true";
-            removeButton.textContent = "Confirm?";
-
-            setTimeout(() => {
-                if (removeButton && removeButton.dataset.clicked) {
-                    removeButton.dataset.clicked = "false";
-                    removeButton.textContent = "Remove";
-                }
-            }, 3000);
-
+        if (!cancelConfirmation(removeButton, "Remove")) {
             return;
         }
-        removeButton.dataset.clicked = "false";
         removeElement(element);
     });
     container.append(removeButton);
@@ -278,6 +321,8 @@ function createHoverToolbar(element) {
             let tag = element.tagName.toLowerCase();
             if (tag === "img" || tag === "img-fitted") {
                 createImageEditor(element);
+            } else if (tag === "a") {
+                createLinkEditor(element);
             } else {
                 createTextEditor(element);
             }
