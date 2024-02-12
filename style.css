@@ -14,6 +14,10 @@
 :root {
     background-color: #004000;
 }
+p { /* Undo Bootstrap styling */
+    margin-top:1rem;
+    margin-bottom:1rem;
+}
 body {
     background-color: #ffffff;
     min-height:100vh;
