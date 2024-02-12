@@ -8,7 +8,8 @@
     
 }
 .editor-hover-element {
-    border:1px dashed #007bff;
+    outline:2px dashed #007bff;
+    outline-offset:1px;
     margin-bottom:0px;
 }
 .editor-container {
@@ -30,6 +31,9 @@
     border:none;
     padding:2px;
     font-size:1rem;
+}
+.editor-container > input {
+    width:100%;
 }
 .ql-toolbar {
     border-radius:5px 5px 0px 0px;

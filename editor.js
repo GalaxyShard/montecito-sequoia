@@ -60,7 +60,38 @@ generalRegistry.register(
 /**
  * @param {HTMLElement} element
  */
-function createEditorBox(element) {
+function removeElement(element) {
+
+}
+
+
+/**
+ * @param {HTMLElement} element
+ */
+function cancelConfirmation(cancel) {
+    if (!cancel.dataset.clicked || cancel.dataset.clicked === "false") {
+        cancel.dataset.clicked = "true";
+        cancel.textContent = "Confirm?";
+
+        setTimeout(() => {
+            if (cancel && cancel.dataset.clicked) {
+                cancel.dataset.clicked = "false";
+                cancel.textContent = "Cancel";
+            }
+        }, 3000);
+
+        return false;
+    }
+    cancel.dataset.clicked = "false";
+    return true;
+}
+
+
+
+/**
+ * @param {HTMLElement} element
+ */
+function createTextEditor(element) {
     removeHoverToolbar(element);
 
     let container = document.createElement("div");
@@ -77,6 +108,7 @@ function createEditorBox(element) {
     editor.append(contents);
 
 
+
     let toolbar = document.createElement("div");
     toolbar.classList.add("editor-toolbar");
 
@@ -85,20 +117,9 @@ function createEditorBox(element) {
     cancel.textContent = "Cancel";
 
     cancel.addEventListener("click", e => {
-        if (!cancel.dataset.clicked || cancel.dataset.clicked === "false") {
-            cancel.dataset.clicked = "true";
-            cancel.textContent = "Confirm?";
-
-            setTimeout(() => {
-                if (cancel && cancel.dataset.clicked) {
-                    cancel.dataset.clicked = "false";
-                    cancel.textContent = "Cancel";
-                }
-            }, 3000);
-
+        if (!cancelConfirmation(cancel)) {
             return;
         }
-        cancel.dataset.clicked = "false";
         let element = document.createElement(container.dataset.tag);
         
         element.innerHTML = container.dataset.original;
@@ -134,15 +155,91 @@ function createEditorBox(element) {
     
     let _ = new Quill(editor, {
         modules: {
-          toolbar: [
-            [{ header: [1, 2, 3, 4, 5, false] }],
-            ["bold", "italic", "link"],
-            ["clean"],
-          ]
+            toolbar: [
+                [{ header: [1, 2, 3, 4, 5, false] }],
+                ["bold", "italic", "link"],
+                ["clean"],
+            ],
         },
         registry: generalRegistry,
         theme: "snow",
     });
+    element.parentElement.replaceChild(container, element);
+}
+
+
+
+/**
+ * @param {HTMLImageElement | HTMLElement} element
+ */
+function createImageEditor(element) {
+    // getAttribute instead of .src to get the raw text rather than the full evaluated path including domain name
+    let isFittedImage = element.getAttribute("src") == null;
+    removeHoverToolbar(element);
+
+    let container = document.createElement("div");
+    container.classList.add("editor-container");
+
+    let input = document.createElement("input");
+    input.type = "text";
+    if (isFittedImage) {
+        let src = element.style.getPropertyValue("--image");
+        src = src.substring(5, src.length-2); // remove url('____')
+        input.value = src;
+    } else {
+        input.value = element.getAttribute("src");
+    }
+
+
+
+    let toolbar = document.createElement("div");
+    toolbar.classList.add("editor-toolbar");
+
+    let cancel = document.createElement("button");
+    cancel.classList.add("editor-cancel");
+    cancel.textContent = "Cancel";
+
+    cancel.addEventListener("click", e => {
+        if (!cancelConfirmation(cancel)) {
+            return;
+        }
+        let element = document.createElement(container.dataset.tag);
+        
+        if (isFittedImage) {
+            element.style.setProperty("--image", container.dataset.original);
+        } else {
+            element.setAttribute("src", container.dataset.original);
+        }
+        for (const attr of JSON.parse(container.dataset.attributes)) {
+            element.setAttribute(
+                attr[0],
+                attr[1],
+            );
+        }
+        setupElementEditing(element);
+        container.parentElement.replaceChild(element, container);
+    });
+
+    let save = document.createElement("button");
+    save.classList.add("editor-save");
+    save.textContent = "Save";
+    save.addEventListener("click", e => {
+
+    });
+    
+
+
+    container.dataset.original = isFittedImage ? element.style.getPropertyValue("--image") : element.getAttribute("src");
+    let attributes = [];
+    for (const attr of element.attributes) {
+        attributes.push([attr.nodeName, attr.nodeValue]);
+    }
+    container.dataset.attributes = JSON.stringify(attributes);
+    container.dataset.tag = element.tagName;
+
+    toolbar.append(cancel, save);
+    container.append(input, toolbar);
+
     element.parentElement.replaceChild(container, element);
 }
 
@@ -173,14 +270,52 @@ function createHoverToolbar(element) {
     container.classList.add("editor-hover-container");
     container.classList.add("editor-toolbar");
 
-    let editButton = document.createElement("button");
-    editButton.textContent = "Edit";
-    editButton.classList.add("editor-button");
-    editButton.addEventListener("click", _ => {
-        createEditorBox(element);
+    let removeButton = document.createElement("button");
+    removeButton.textContent = "Remove";
+    removeButton.classList.add("editor-button");
+    removeButton.classList.add("editor-cancel");
+    removeButton.addEventListener("click", _ => {
+        if (!removeButton.dataset.clicked || removeButton.dataset.clicked === "false") {
+            removeButton.dataset.clicked = "true";
+            removeButton.textContent = "Confirm?";
+
+            setTimeout(() => {
+                if (removeButton && removeButton.dataset.clicked) {
+                    removeButton.dataset.clicked = "false";
+                    removeButton.textContent = "Remove";
+                }
+            }, 3000);
+
+            return;
+        }
+        removeButton.dataset.clicked = "false";
+        removeElement(element);
     });
+    container.append(removeButton);
+
+    if (element.tagName !== "HR") {
+        let editButton = document.createElement("button");
+        editButton.textContent = "Edit";
+        editButton.classList.add("editor-button");
+        editButton.addEventListener("click", _ => {
+            let tag = element.tagName.toLowerCase();
+            if (tag === "img" || tag === "img-fitted") {
+                createImageEditor(element);
+            } else {
+                createTextEditor(element);
+            }
+        });
+        container.append(editButton);
+    }
+
+    let addButton = document.createElement("button");
+    addButton.textContent = "Add";
+    addButton.classList.add("editor-button");
+    addButton.addEventListener("click", _ => {
+
+    });
+    container.append(addButton);
     
-    container.append(editButton);
     element.classList.add("editor-hover-element");
     element.insertAdjacentElement("afterend", container);
     
@@ -202,8 +337,17 @@ function setupElementEditing(element) {
         createHoverToolbar(element);
     });
 }
-for (let p of document.getElementsByTagName("p")) {
-    setupElementEditing(p);
+for (let e of document.getElementsByTagName("p")) {
+    setupElementEditing(e);
+}
+for (let e of document.getElementsByTagName("img-fitted")) {
+    setupElementEditing(e);
+}
+for (let e of document.getElementsByTagName("img")) {
+    setupElementEditing(e);
+}
+for (let e of document.getElementsByTagName("hr")) {
+    setupElementEditing(e);
 }
 for (let e of document.getElementsByClassName("link-button-log")) {
     setupElementEditing(e);
@@ -211,6 +355,6 @@ for (let e of document.getElementsByClassName("link-button-log")) {
 for (let e of document.querySelectorAll("[data-editable]")) {
     setupElementEditing(e);
 }
-for (let h of document.querySelectorAll("h1,h2,h3,h4,h5")) {
-    setupElementEditing(h);
+for (let e of document.querySelectorAll("h1,h2,h3,h4,h5")) {
+    setupElementEditing(e);
 }
