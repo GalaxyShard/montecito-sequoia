@@ -22,13 +22,12 @@ p { /* Undo Bootstrap styling */
     --bs-gutter-x:0;
 }
 
-.alert > p:first-child {
+.alert > p:first-child, li > p:first-child {
     margin-top:0;
 }
-.alert > p:last-child {
+.alert > p:last-child, li > p:last-child {
     margin-bottom:0;
 }
-
 body {
     background-color: #ffffff;
     min-height:100vh;

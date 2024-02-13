@@ -22,18 +22,37 @@
  * for the JavaScript code in this page
  *
  */
+import { Editor, Mark, mergeAttributes } from 'https://cdn.jsdelivr.net/npm/@tiptap/core@2.2.2/+esm'
+import Document from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-document@2.2.2/+esm'
+import Paragraph from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-paragraph@2.2.2/+esm'
+import Text from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-text@2.2.2/+esm'
+import BulletList from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-bullet-list@2.2.2/+esm'
+import ListItem from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-list-item@2.2.2/+esm'
+import HardBreak from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-hard-break@2.2.2/+esm'
+import Heading from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-heading@2.2.2/+esm'
+import Bold from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-bold@2.2.2/+esm'
+import Italic from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-italic@2.2.2/+esm'
+import Link from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-link@2.2.2/+esm'
 
-import { Editor } from 'https://esm.sh/@tiptap/core'
-import Document from 'https://esm.sh/@tiptap/extension-document'
-import Paragraph from 'https://esm.sh/@tiptap/extension-paragraph'
-import Text from 'https://esm.sh/@tiptap/extension-text'
-import BulletList from 'https://esm.sh/@tiptap/extension-bullet-list'
-import ListItem from 'https://esm.sh/@tiptap/extension-list-item'
-import HardBreak from 'https://esm.sh/@tiptap/extension-hard-break'
-import Heading from 'https://esm.sh/@tiptap/extension-heading'
-import Bold from 'https://esm.sh/@tiptap/extension-bold'
-import Italic from 'https://esm.sh/@tiptap/extension-italic'
-import Link from 'https://esm.sh/@tiptap/extension-link'
+const SmallMark = Mark.create({
+    name: "small",
+    addOptions() {
+      return {
+        HTMLAttributes: {},
+      };
+    },
+  
+    parseHTML() {
+      return [
+        {
+          tag: 'small',
+        },
+      ];
+    },
+    renderHTML({ HTMLAttributes }) {
+      return ['small', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+    },
+});
 
 Heading.configure({
     levels: [1, 2, 3, 4, 5],
@@ -184,7 +203,7 @@ function createTextEditor(element) {
     let editorInstance = new Editor({
         element: editorElement,
         extensions: [
-            Document, Paragraph, Text, BulletList, ListItem, HardBreak, Heading, Bold, Italic, Link
+            Document, Paragraph, Text, BulletList, ListItem, HardBreak, Heading, Bold, Italic, Link, SmallMark
         ],
         content: element.outerHTML,
     })
@@ -395,6 +414,9 @@ function setupElementEditing(element) {
     });
 }
 for (let e of document.getElementsByTagName("p")) {
+    setupElementEditing(e);
+}
+for (let e of document.getElementsByTagName("ul")) {
     setupElementEditing(e);
 }
 for (let e of document.getElementsByTagName("img-fitted")) {
