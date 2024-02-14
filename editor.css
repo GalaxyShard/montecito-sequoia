@@ -11,13 +11,13 @@
     content: ">";
     font-style: normal;
     transform:rotate(90deg);
-    display:block;
+    display:inline-block;
 }
 .editor-up-button::after {
     content: ">";
     font-style: normal;
     transform:rotate(-90deg);
-    display:block;
+    display:inline-block;
 }
 hr { /* Make hr elements easier to click on in the editor */
     padding:2px 0px;
