@@ -58,6 +58,30 @@ Heading.configure({
     levels: [1, 2, 3, 4, 5],
 })
 
+
+/**
+ * 
+ * @param {HTMLElement} element 
+ * @param  {...string} tags 
+ * @returns 
+ */
+function tagIs(element, ...tags) {
+    return element !== null && tags.includes(element.tagName);
+}
+/**
+ * 
+ * @param {HTMLElement} element
+ * @param {HTMLElement} child
+ */
+function insertAfter(element, child) {
+    if (child.nextElementSibling) {
+        child.parentElement.insertBefore(element, child.nextElementSibling);
+    } else {
+        child.parentElement.append(element);
+    }
+}
+
+
 /**
  * @param {HTMLElement} element
  */
@@ -180,7 +204,7 @@ function createTextEditor(element) {
             return;
         }
         
-        decodeAttributes(frag.firstChild, container.dataset.attributes);
+        decodeAttributes(frag.firstElementChild, container.dataset.attributes);
         for (let e of frag.children) {
             setupElementEditing(e);
         }
@@ -338,6 +362,7 @@ function removeHoverToolbar(element) {
     let container = element.nextElementSibling;
     if (container && container.classList.contains("editor-hover-container")) {
         container.remove();
+        currentToolbarElement = null;
     }
     element.classList.remove("editor-hover-element");
 }
@@ -383,6 +408,64 @@ function createHoverToolbar(element) {
         });
         container.append(editButton);
     }
+    let downButton = document.createElement("button");
+    downButton.textContent = "";
+    downButton.classList.add("editor-button");
+    downButton.classList.add("editor-down-button");
+
+    downButton.addEventListener("click", _ => {
+        let nextElement = element.nextElementSibling.nextElementSibling; // skip the toolbar
+        
+        if (nextElement) {
+            removeHoverToolbar(element);
+            
+            if (tagIs(nextElement, "DIV", "MAIN", "ASIDE", "SECTION") && !nextElement.classList.contains("row")) {
+                nextElement.insertBefore(element, nextElement.firstElementChild);
+            } else {
+                insertAfter(element, nextElement);
+            }
+        } else {
+            if (!tagIs(element.parentElement, "BODY")
+                && (!tagIs(element.parentElement.parentElement, "BODY") || tagIs(element, "IMG", "IMG-FITTED"))
+                && !element.parentElement.parentElement.classList.contains("row"))
+            {
+                // allow moving images up to the body, and anything else up one level but not to the body or out of a column
+                removeHoverToolbar(element);
+                insertAfter(element, element.parentElement);
+            }
+        }
+    });
+    container.append(downButton);
+
+
+    let upButton = document.createElement("button");
+    upButton.textContent = "";
+    upButton.classList.add("editor-button");
+    upButton.classList.add("editor-up-button");
+
+    upButton.addEventListener("click", _ => {
+        let prevElement = element.previousElementSibling;
+
+        if (prevElement) {
+            removeHoverToolbar(element);
+
+            if (tagIs(prevElement, "DIV", "MAIN", "ASIDE", "SECTION") && !prevElement.classList.contains("row")) {
+                prevElement.append(element);
+            } else {
+                element.parentElement.insertBefore(element, prevElement);
+            }
+
+        } else if (!tagIs(element.parentElement, "BODY")
+            && (!tagIs(element.parentElement.parentElement, "BODY") || tagIs(element, "IMG", "IMG-FITTED"))
+            && !element.parentElement.parentElement.classList.contains("row"))
+        {
+            // allow moving images up to the body, and anything else up one level but not to the body or out of a column
+            removeHoverToolbar(element);
+            element.parentElement.parentElement.insertBefore(element, element.parentElement);
+        }
+    });
+    container.append(upButton);
+
 
     let addButton = document.createElement("button");
     addButton.textContent = "Add";
@@ -411,6 +494,11 @@ function setupElementEditing(element) {
 
     element.addEventListener("mouseenter", _ => {
         createHoverToolbar(element);
+    });
+    element.addEventListener("mousemove", _ => {
+        if (currentToolbarElement !== element) {
+            createHoverToolbar(element);
+        }
     });
 }
 for (let e of document.getElementsByTagName("p")) {
