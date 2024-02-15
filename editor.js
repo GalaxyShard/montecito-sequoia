@@ -191,15 +191,22 @@ function createTextEditor(element) {
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
     }
-    function onSave() {        
+    function onSave() {
         // convert html into a document fragment
         const html = editorInstance.getHTML();
+
         let frag = document.createDocumentFragment();
         let temp = document.createElement('div');
         temp.innerHTML = html;
+
         while (temp.firstChild) {
+            if (temp.firstChild.textContent.length == 0) { // ignore empty paragraphs
+                temp.firstChild.remove();
+                continue;
+            }
             frag.appendChild(temp.firstChild);
         }
+        temp.remove();
         if (frag.children.length == 0) {
             return;
         }
@@ -353,6 +360,34 @@ function createLinkEditor(element) {
 
 
 
+/**
+ * @param {HTMLElement} element
+ */
+function createAddElementDropdown(element) {
+    let container = element.nextElementSibling;
+    if (!container || !container.classList.contains("editor-hover-container")) {
+        return;
+    }
+    let dropdown = document.createElement("div");
+    dropdown.classList.add("editor-toolbar");
+    dropdown.classList.add("editor-dropdown");
+
+    let alertButton = document.createElement("button");
+    alertButton.textContent = "Info Alert";
+    alertButton.addEventListener("click", _ => {
+        
+    });
+    dropdown.append(alertButton);
+
+    let alertWarningButton = document.createElement("button");
+    alertWarningButton.textContent = "Warning Alert";
+    alertWarningButton.addEventListener("click", _ => {
+        
+    });
+    dropdown.append(alertWarningButton);
+
+    container.append(dropdown);
+}
 let currentToolbarElement = null;
 
 /**
@@ -377,11 +412,12 @@ function createHoverToolbar(element) {
 
     let container = document.createElement("div");
     container.classList.add("editor-hover-container");
-    container.classList.add("editor-toolbar");
+
+    let toolbar = document.createElement("div");
+    toolbar.classList.add("editor-toolbar");
 
     let removeButton = document.createElement("button");
     removeButton.textContent = "Remove";
-    removeButton.classList.add("editor-button");
     removeButton.classList.add("editor-cancel");
     removeButton.addEventListener("click", _ => {
         if (!cancelConfirmation(removeButton, "Remove")) {
@@ -390,27 +426,24 @@ function createHoverToolbar(element) {
         removeHoverToolbar(element);
         element.remove();
     });
-    container.append(removeButton);
+    toolbar.append(removeButton);
 
-    if (element.tagName !== "HR") {
+    if (!tagIs(element, "HR") && !element.classList.contains("alert")) {
         let editButton = document.createElement("button");
         editButton.textContent = "Edit";
-        editButton.classList.add("editor-button");
         editButton.addEventListener("click", _ => {
-            let tag = element.tagName.toLowerCase();
-            if (tag === "img" || tag === "img-fitted") {
+            if (tagIs(element, "IMG", "IMG-FITTED")) {
                 createImageEditor(element);
-            } else if (tag === "a") {
+            } else if (tagIs(element, "A")) {
                 createLinkEditor(element);
             } else {
                 createTextEditor(element);
             }
         });
-        container.append(editButton);
+        toolbar.append(editButton);
     }
     let downButton = document.createElement("button");
     downButton.textContent = "";
-    downButton.classList.add("editor-button");
     downButton.classList.add("editor-down-button");
 
     downButton.addEventListener("click", _ => {
@@ -435,12 +468,11 @@ function createHoverToolbar(element) {
             }
         }
     });
-    container.append(downButton);
+    toolbar.append(downButton);
 
 
     let upButton = document.createElement("button");
     upButton.textContent = "";
-    upButton.classList.add("editor-button");
     upButton.classList.add("editor-up-button");
 
     upButton.addEventListener("click", _ => {
@@ -464,18 +496,26 @@ function createHoverToolbar(element) {
             element.parentElement.parentElement.insertBefore(element, element.parentElement);
         }
     });
-    container.append(upButton);
+    toolbar.append(upButton);
 
 
     let addButton = document.createElement("button");
     addButton.textContent = "Add";
-    addButton.classList.add("editor-button");
     addButton.addEventListener("click", _ => {
-
+        createAddElementDropdown(element);
     });
-    container.append(addButton);
+    toolbar.append(addButton);
     
+
+    container.addEventListener("mouseenter", e => {
+        e.stopPropagation();
+    });
+    container.addEventListener("mousemove", e => {
+        e.stopPropagation();
+    });
     element.classList.add("editor-hover-element");
+
+    container.append(toolbar);
     element.insertAdjacentElement("afterend", container);
     
     if (currentToolbarElement !== null) {
@@ -492,13 +532,15 @@ function setupElementEditing(element) {
         return;
     }
 
-    element.addEventListener("mouseenter", _ => {
+    element.addEventListener("mouseenter", e => {
         createHoverToolbar(element);
+        e.stopPropagation();
     });
-    element.addEventListener("mousemove", _ => {
+    element.addEventListener("mousemove", e => {
         if (currentToolbarElement !== element) {
             createHoverToolbar(element);
         }
+        e.stopPropagation();
     });
 }
 for (let e of document.getElementsByTagName("p")) {
@@ -517,6 +559,9 @@ for (let e of document.getElementsByTagName("hr")) {
     setupElementEditing(e);
 }
 for (let e of document.getElementsByClassName("link-button-log")) {
+    setupElementEditing(e);
+}
+for (let e of document.getElementsByClassName("alert")) {
     setupElementEditing(e);
 }
 for (let e of document.querySelectorAll("h1,h2,h3,h4,h5")) {

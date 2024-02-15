@@ -1,30 +1,12 @@
 @import url("https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.0/dist/quill.snow.css");
-.editor-button {
-    font-style: italic;
-    color:#007bff;
-    border:none;
-    padding:0;
-    margin:0;
-    
-}
-.editor-down-button::after {
-    content: ">";
-    font-style: normal;
-    transform:rotate(90deg);
-    display:inline-block;
-}
-.editor-up-button::after {
-    content: ">";
-    font-style: normal;
-    transform:rotate(-90deg);
-    display:inline-block;
-}
+
 hr { /* Make hr elements easier to click on in the editor */
     padding:2px 0px;
 }
 .editor-hover-element {
     outline:2px dashed #007bff;
     outline-offset:1px;
+    margin-bottom:0 !important;
 }
 p.editor-hover-element {
     margin-bottom:0px;
@@ -61,13 +43,19 @@ p.editor-hover-element {
     width:100%;
 }
 
+
 .editor-toolbar {
     display:flex;
     flex-wrap:wrap;
     flex-direction: row;
     justify-content: space-around;
 }
+.editor-dropdown {
+    flex-direction:column;
+}
 .editor-toolbar > button {
+    color:#007bff;
+    
     flex-grow:1;
     background-color: white;
     border:none;
@@ -84,10 +72,22 @@ p.editor-hover-element {
     background-color: #e0e0e0;
 }
 .editor-cancel {
-    color:red;
+    color:red !important;
 }
 .editor-save {
     color:#007bff;
+}
+.editor-down-button::after {
+    content: ">";
+    font-style: normal;
+    transform:rotate(90deg);
+    display:inline-block;
+}
+.editor-up-button::after {
+    content: ">";
+    font-style: normal;
+    transform:rotate(-90deg);
+    display:inline-block;
 }
 
 
