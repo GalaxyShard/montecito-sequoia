@@ -368,23 +368,112 @@ function createAddElementDropdown(element) {
     if (!container || !container.classList.contains("editor-hover-container")) {
         return;
     }
+    if (container.getElementsByClassName("editor-dropdown").length > 0) {
+        return;
+    }
     let dropdown = document.createElement("div");
     dropdown.classList.add("editor-toolbar");
     dropdown.classList.add("editor-dropdown");
 
-    let alertButton = document.createElement("button");
-    alertButton.textContent = "Info Alert";
-    alertButton.addEventListener("click", _ => {
-        
-    });
-    dropdown.append(alertButton);
 
-    let alertWarningButton = document.createElement("button");
-    alertWarningButton.textContent = "Warning Alert";
-    alertWarningButton.addEventListener("click", _ => {
-        
+    let insertAlert = document.createElement("button");
+    insertAlert.textContent = "Info Alert";
+    insertAlert.addEventListener("click", _ => {
+        removeHoverToolbar(element);
+
+        let e = document.createElement("div");
+        e.classList.add("alert", "alert-info", "text-center", "px-5");
+        e.role = "alert";
+        setupElementEditing(e);
+        element.insertAdjacentElement("afterend", e);
     });
-    dropdown.append(alertWarningButton);
+    dropdown.append(insertAlert);
+
+
+    let insertWarning = document.createElement("button");
+    insertWarning.textContent = "Warning Alert";
+    insertWarning.addEventListener("click", _ => {
+        removeHoverToolbar(element);
+        
+        let e = document.createElement("div");
+        e.classList.add("alert", "alert-warning", "text-center", "px-5");
+        e.role = "alert";
+        setupElementEditing(e);
+        element.insertAdjacentElement("afterend", e);
+    });
+    dropdown.append(insertWarning);
+
+
+    let insertImage = document.createElement("button");
+    insertImage.textContent = "Image";
+    insertImage.addEventListener("click", _ => {
+        removeHoverToolbar(element);
+        
+        let e = document.createElement("img-fitted");
+        e.role = "img";
+        e.setAttribute("style", `--image:url('/assets/logos/montecito.svg');
+            --image-max:500px;
+            height:calc(250px + 5vw);
+            border-radius:5px;
+        `);
+        e.setAttribute("aria-label", "");
+        // TODO: accessibility & configuration of images
+        setupElementEditing(e);
+        if (element.classList.contains("alert")) {
+            element.append(e);
+        } else {
+            element.insertAdjacentElement("afterend", e);
+        }
+    });
+    dropdown.append(insertImage);
+
+
+    let insertLink = document.createElement("button");
+    insertLink.textContent = "Link";
+    insertLink.addEventListener("click", _ => {
+        removeHoverToolbar(element);
+        
+        let e = document.createElement("a");
+        e.textContent = "Link";
+        e.href = "/";
+        e.classList.add("link-button-log", "link-arrow");
+        setupElementEditing(e);
+        if (element.classList.contains("alert")) {
+            element.append(e);
+        } else {
+            element.insertAdjacentElement("afterend", e);
+        }
+    });
+    dropdown.append(insertLink);
+
+
+    let insertParagraph = document.createElement("button");
+    insertParagraph.textContent = "Paragraph";
+    insertParagraph.addEventListener("click", _ => {
+        removeHoverToolbar(element);
+        
+        let e = document.createElement("p");
+        e.textContent = "Text";
+        setupElementEditing(e);
+        if (element.classList.contains("alert")) {
+            element.append(e);
+        } else {
+            element.insertAdjacentElement("afterend", e);
+        }
+    });
+    dropdown.append(insertParagraph);
+
+
+    let insertHr = document.createElement("button");
+    insertHr.textContent = "Horizontal Bar";
+    insertHr.addEventListener("click", _ => {
+        removeHoverToolbar(element);
+        
+        let e = document.createElement("hr");
+        setupElementEditing(e);
+        element.insertAdjacentElement("afterend", e);
+    });
+    dropdown.append(insertHr);
 
     container.append(dropdown);
 }
