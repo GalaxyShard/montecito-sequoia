@@ -1,4 +1,4 @@
-@import url("https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.0/dist/quill.snow.css");
+@import "/node_modules/quill/dist/quill.snow.css";
 
 hr { /* Make hr elements easier to click on in the editor */
     padding:2px 0px;

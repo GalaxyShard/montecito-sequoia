@@ -22,17 +22,17 @@
  * for the JavaScript code in this page
  *
  */
-import { Editor, Mark, mergeAttributes } from 'https://cdn.jsdelivr.net/npm/@tiptap/core@2.2.2/+esm'
-import Document from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-document@2.2.2/+esm'
-import Paragraph from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-paragraph@2.2.2/+esm'
-import Text from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-text@2.2.2/+esm'
-import BulletList from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-bullet-list@2.2.2/+esm'
-import ListItem from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-list-item@2.2.2/+esm'
-import HardBreak from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-hard-break@2.2.2/+esm'
-import Heading from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-heading@2.2.2/+esm'
-import Bold from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-bold@2.2.2/+esm'
-import Italic from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-italic@2.2.2/+esm'
-import Link from 'https://cdn.jsdelivr.net/npm/@tiptap/extension-link@2.2.2/+esm'
+import { Editor, Mark, mergeAttributes } from '@tiptap/core'
+import Document from '@tiptap/extension-document'
+import Paragraph from '@tiptap/extension-paragraph'
+import Text from '@tiptap/extension-text'
+import BulletList from '@tiptap/extension-bullet-list'
+import ListItem from '@tiptap/extension-list-item'
+import HardBreak from '@tiptap/extension-hard-break'
+import Heading from '@tiptap/extension-heading'
+import Bold from '@tiptap/extension-bold'
+import Italic from '@tiptap/extension-italic'
+import Link from '@tiptap/extension-link'
 
 const SmallMark = Mark.create({
     name: "small",
