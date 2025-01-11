@@ -10,29 +10,8 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <header>
-        <h1 data-uneditable class="cursive">Montecito Sequoia Lodge</h1>
-        <div class="row max-size">
-            <div class="d-none d-md-block col-1"></div>
-            <div class="col-11 col-md-8 description">
-                <div class="logo-container">
-                    <img data-uneditable class="logo" src="/assets/logos/montecito.svg" alt="Montecito Logo">
-                </div>
-                <p data-uneditable>
-                    A Classic, All-Inclusive, Year-round Lodge &<br>Summer Family Camp in California
-                </p>
-            </div>
-            <div class="d-block d-md-none col-1"></div>
-            <div class="col-12 col-md-3 quick-link mt-3 mt-md-0">
-                <div>
-                    <a class="phone-number" href="tel:+1-800-227-9900">800-227-9900</a><br>
-                    <a class="book-now" href="/lodging/booking">Book Lodging</a><br>
-                    <a class="book-now" href="/family-camp/booking">Book Family Camp</a>
-                </div>
-            </div>
-        </div>
-    </header>
-    
+    {{header.html}}
+
     <nav>
         <div class="row max-size">
             <div class="col-6 col-md-4">
@@ -192,29 +171,6 @@
         </p>
     </main>
 
-
-
-    <footer>
-        <div class="max-size px-2">
-            <div class="pt-4">
-                <a href="tel:+1-800-227-9900">800-227-9900</a><br>
-                <a href="mailto:reserve@mslodge.com">reserve@mslodge.com</a>
-            </div>
-            <div class="social-links py-3">
-                <a href="http://www.tripadvisor.com/Hotel_Review-g143050-d82142-Reviews-Montecito_Sequoia_Lodge-Sequoia_and_Kings_Canyon_National_Park_California.html#REVIEWS">
-                    <img data-uneditable src="/assets/logos/trip-advisor.svg" alt="Trip Advisor">
-                </a>
-                <a href="https://www.facebook.com/MontecitoSequoiaLodgeandSummerFamilyCamp">
-                    <img data-uneditable src="/assets/logos/facebook.svg" alt="Facebook">
-                </a>
-                <a href="https://www.instagram.com/montecitosequoialodge">
-                    <img data-uneditable src="/assets/logos/instagram.svg" alt="Instagram">
-                </a>
-            </div>
-            <p data-uneditable class="my-0 pb-4" style="font-size:small;">
-                <em>Montecito Lake Resort, LLC, is a recreation partner with the Sequoia National Forest on a non-discriminatory basis.</em>
-            </p>
-        </div>
-    </footer>
+    {{footer.html}}
 </body>
 </html>
