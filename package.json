@@ -1,6 +1,7 @@
 {
 	"scripts": {
-		"build": "rollup --config"
+		"build": "rollup --config",
+		"serve": "(cd ./zig-out/site && serve)"
 	},
 	"dependencies": {
 		"@tiptap/core": "^2.11.0",
