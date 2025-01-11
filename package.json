@@ -1,8 +1,14 @@
 {
 	"scripts": {
-		"build": "rollup --config",
+		"rebuild-editor": "rollup --config",
+		"rebuild-site": "./zig-out/bin/generate-html site zig-out/site site/template",
+		"rebuild-all": "$npm_execpath run rebuild-editor && $npm_execpath run rebuild-site",
+		"build": "rollup --config && zig build && ./zig-out/bin/generate-html site zig-out/site site/template && cp node_modules/bootstrap/dist/css/bootstrap.min.css zig-out/site/bootstrap.min.css",
 		"serve": "(cd ./zig-out/site && serve)"
 	},
+
+	"type": "module",
+
 	"dependencies": {
 		"@tiptap/core": "^2.11.0",
 		"@tiptap/extension-bold": "^2.11.0",
