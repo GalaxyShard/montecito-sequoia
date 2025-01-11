@@ -128,10 +128,16 @@ pub fn main() !void {
     defer walker.deinit();
 
     while (try walker.next()) |entry| {
-        if (std.mem.containsAtLeast(u8, entry.path, 1, "template")) {
+        if (entry.kind != .file or std.mem.containsAtLeast(u8, entry.path, 1, "template")) {
             continue;
         }
+
+        if (std.fs.path.dirname(entry.path)) |dir| {
+            try output_dir.makePath(dir);
+        }
+
         if (!std.mem.endsWith(u8, entry.basename, ".html")) {
+            try entry.dir.copyFile(entry.basename, output_dir, entry.path, .{});
             continue;
         }
         // 8 MiB, no input file should be anywhere near this size
@@ -139,9 +145,6 @@ pub fn main() !void {
         const file_contents = try entry.dir.readFileAlloc(alloc, entry.basename, size_cap);
         defer alloc.free(file_contents);
 
-        if (std.fs.path.dirname(entry.path)) |dir| {
-            try output_dir.makePath(dir);
-        }
         const output_file = try output_dir.createFile(entry.path, .{});
         defer output_file.close();
 
