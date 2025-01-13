@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Montecito Site Editor</title>
+
+    <style>
+        {{style.css}}
+    </style>
+
+    <script type="module">
+        {{index.js}}
+    </script>
+</head>
+<body>
+    <div id="front-page">
+        <img id="logo" src="data:image/svg+xml;base64,{{montecito.svg:base64}}" alt="Montecito Logo">
+
+        <button id="open-production">
+            Preview production site locally
+        </button>
+
+        <button id="open-editor">
+            Open site with editor
+        </button>
+    </div>
+
+    <div id="hosting-page" hidden>
+        <img id="logo" src="data:image/svg+xml;base64,{{montecito.svg:base64}}" alt="Montecito Logo">
+
+        <button id="back-button">Stop and return to menu</button>
+
+        <p><span id="page-title"></span></p>
+    </div>
+</body>
+</html>
