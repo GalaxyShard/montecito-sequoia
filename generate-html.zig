@@ -12,12 +12,27 @@ const ReplacementOptions = struct {
     writer: std.io.AnyWriter,
     template_map: TemplateMap,
 };
-fn expand(id: []const u8, options: ReplacementOptions) ExpansionError!bool {
+const Directive = enum {
+    base64,
+};
+const directive_map = std.StaticStringMap(Directive).initComptime(.{
+    .{ "base64", .base64 },
+});
+
+fn expand(id: []const u8, options: ReplacementOptions, directive: ?Directive) ExpansionError!bool {
     const template = options.template_map.get(id) orelse {
         std.debug.print("Template not found: {s}\n", .{id});
         return false;
     };
-    options.writer.writeAll(template) catch return error.WriteFailed;
+    if (directive) |d| {
+        switch (d) {
+            .base64 => {
+                std.base64.standard.Encoder.encodeWriter(options.writer, template) catch return error.WriteFailed;
+            },
+        }
+    } else {
+        options.writer.writeAll(template) catch return error.WriteFailed;
+    }
     return true;
 }
 
@@ -27,9 +42,16 @@ fn performReplacementStream(original: []const u8, options: ReplacementOptions) E
         const end_marker_index = std.mem.indexOf(u8, buffer, "}}") orelse return error.UnterminatedExpansion;
 
         options.writer.writeAll(buffer[0..start_index]) catch return error.WriteFailed;
-        const id = buffer[start_index+2..end_marker_index];
+        var directives = std.mem.splitScalar(u8, buffer[start_index+2..end_marker_index], ':');
 
-        if (!try expand(id, options)) {
+
+        const id = directives.first();
+        const directive = blk: {
+            const str = directives.next() orelse break :blk null;
+            break :blk directive_map.get(str);
+        };
+
+        if (!try expand(id, options, directive)) {
             return error.UnknownExpansion;
         }
 
