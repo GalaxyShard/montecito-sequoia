@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) !void {
 
     const editor_step = b.step("editor", "Compile the editor executable");
     const run_editor_step = b.step("run-editor", "Run the editor executable");
-    const pnpm_enabled = b.option(bool, "pnpm", "Run pnpm before compiling (default: false)") orelse false;
+    const pnpm_enabled = b.option(bool, "pnpm", "Run pnpm before compiling (default: true)") orelse true;
 
 
 
@@ -23,6 +23,9 @@ pub fn build(b: *std.Build) !void {
         @panic("pnpm not found in PATH; pnpm is required to perform a full build");
     };
     const run_pnpm = b.addSystemCommand(&.{ pnpm, "run", "build" });
+    // Normally stdout is forwarded, causing errors with
+    // the ZLS build runner.
+    _ = run_pnpm.captureStdOut();
 
 
 
@@ -37,6 +40,44 @@ pub fn build(b: *std.Build) !void {
     if (pnpm_enabled) {
         generate_html.step.dependOn(&run_pnpm.step);
     }
+
+    const generate_site = b.addRunArtifact(generate_html);
+    generate_site.addDirectoryArg(b.path("site"));
+    const output_site = generate_site.addOutputDirectoryArg("site");
+    generate_site.addDirectoryArg(b.path("site/template"));
+
+    b.getInstallStep().dependOn(&b.addInstallDirectory(.{
+        .source_dir = output_site,
+        .install_dir = .{ .custom = "site" },
+        .install_subdir = "",
+    }).step);
+
+    // note: depends on `pnpm install` having been run
+    b.getInstallStep().dependOn(&b.addInstallFileWithDir(
+        b.path("node_modules/bootstrap/dist/css/bootstrap.min.css"),
+        .{ .custom = "site" },
+        "bootstrap.min.css"
+    ).step);
+
+
+    const generate_editor_app = b.addRunArtifact(generate_html);
+
+    // TODO: remove this workaround
+    // fixes changed files being used from cache
+    // related issue: https://github.com/ziglang/zig/issues/21912
+    generate_editor_app.has_side_effects = true;
+
+    generate_editor_app.addDirectoryArg(b.path("editor"));
+    const editor_output_files = generate_editor_app.addOutputDirectoryArg("editor-frontend");
+    generate_editor_app.addDirectoryArg(b.path("editor"));
+    generate_editor_app.addDirectoryArg(b.path("site/assets/logos/montecito.svg"));
+
+    const editor_index_html = editor_output_files.path(b, "index.html");
+    editor.root_module.addAnonymousImport("index.html", .{
+        .root_source_file = editor_index_html,
+    });
+
+
     b.installArtifact(generate_html);
 
 
@@ -44,11 +85,12 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    editor.root_module.addImport("webview", webview.module("webview"));
+    editor.root_module.addImport("Webview", webview.module("Webview"));
     editor.linkLibrary(webview.artifact("webview-static"));
 
     const run_editor = b.addRunArtifact(editor);
     run_editor_step.dependOn(&run_editor.step);
 
     editor_step.dependOn(&b.addInstallArtifact(editor, .{}).step);
+    b.getInstallStep().dependOn(editor_step);
 }

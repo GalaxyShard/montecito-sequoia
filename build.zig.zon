@@ -5,26 +5,19 @@
     .dependencies = .{
         .webview = .{
             //.path = "../webview-zig",
-            .url = "git+https://codeberg.org/galaxyshard/zig-webview.git#9d06f0cd181092e2a66d175e153e9122c298e8cf",
-            .hash = "1220e95d1bffed0f83c411f97b63fad99a566f4d128cb5b00476c8e4617a34a7f05f",
+            .url = "git+https://codeberg.org/galaxyshard/zig-webview.git#7122adbc25cb74b94212a49ed72be60bae178ad0",
+            .hash = "12207e97a018b74b352d245ebea8063c211d23be98cf3e50758bc5d4375e92193801",
         },
     },
 
     .paths = .{
-        "assets",
         "editor",
-        "family-camp",
-        "lodging",
+        "site",
         "build.zig",
         "build.zig.zon",
 
-        "dining.html",
-        "directions.html",
         "generate-html.zig",
-        "index.html",
-        "index.js",
-        "jobs.html",
-        "stony-creek-lodge.html",
-        "style.css",
+        "package.json",
+        "rollup.config.js",
     },
 }
