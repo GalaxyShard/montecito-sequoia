@@ -1,12 +1,14 @@
 .{
-    .name = "montecito",
+    .name = .montecito,
+    .fingerprint = 0xa0cd28613b12f339,
     .version = "0.0.0",
 
     .dependencies = .{
+        // zig fetch --save git+https://codeberg.org/galaxyshard/zig-webview.git
         .webview = .{
-            //.path = "../webview-zig",
-            .url = "git+https://codeberg.org/galaxyshard/zig-webview.git#7122adbc25cb74b94212a49ed72be60bae178ad0",
-            .hash = "12207e97a018b74b352d245ebea8063c211d23be98cf3e50758bc5d4375e92193801",
+            //.path = "../../webview-zig",
+            .url = "git+https://codeberg.org/galaxyshard/zig-webview.git#28eeb3a4e3e06459771e5aae915796717a0b102a",
+            .hash = "webview-0.0.0-XQYxC9YQIgDyLcnP2nNP3ZWVqD6k5ypk2RU84s90tqTi",
         },
     },
 

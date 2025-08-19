@@ -86,7 +86,6 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     editor.root_module.addImport("Webview", webview.module("Webview"));
-    editor.linkLibrary(webview.artifact("webview-static"));
 
     const run_editor = b.addRunArtifact(editor);
     run_editor_step.dependOn(&run_editor.step);

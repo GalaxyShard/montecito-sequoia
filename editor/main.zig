@@ -9,7 +9,7 @@ const State = struct {
 };
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
 
     const alloc = gpa.allocator();
@@ -24,10 +24,10 @@ pub fn main() !void {
     var state: State = .{
         .thread = null,
     };
-    const host_site = try webview.bind(alloc, "backendHostSite", &hostSite, &state);
+    const host_site = try webview.bind(alloc, "backendHostSite", &hostSite, .{&state});
     defer host_site.deinit();
 
-    const stop_hosting = try webview.bind(alloc, "backendStopHosting", &stopHosting, &state);
+    const stop_hosting = try webview.bind(alloc, "backendStopHosting", &stopHosting, .{&state});
     defer stop_hosting.deinit();
 
     try webview.run();
@@ -39,10 +39,10 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
     }
     const address = std.net.Address.initIp4(.{127,0,0,1}, 0);
     var tcp_server = address.listen(.{ .reuse_address = true }) catch |e| {
-        context.returnError(void{}) catch |e2| {
-            std.debug.panic("error: {s}\n", .{@errorName(e2)});
+        context.returnError(@errorName(e)) catch |e2| {
+            std.debug.panic("unrecoverable error: {t}\n", .{e2});
         };
-        std.debug.panic("error: {s}\n", .{@errorName(e)});
+        return;
     };
     defer tcp_server.deinit();
     std.debug.print("port: {}\n", .{tcp_server.listen_address.getPort()});
@@ -57,6 +57,6 @@ fn stopHosting(context: Webview.BindContext, state: *State) void {
     // TODO: implement this function; stop the http server
 
     context.returnError(void{}) catch |e| {
-        std.debug.panic("error: {s}\n", .{@errorName(e)});
+        std.debug.panic("unrecoverable error: {t}\n", .{e});
     };
 }

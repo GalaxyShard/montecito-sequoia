@@ -9,7 +9,7 @@ const ExpansionError = error{
 };
 
 const ReplacementOptions = struct {
-    writer: std.io.AnyWriter,
+    writer: *std.Io.Writer,
     template_map: TemplateMap,
 };
 const Directive = enum {
@@ -58,6 +58,7 @@ fn performReplacementStream(original: []const u8, options: ReplacementOptions) E
         buffer = buffer[end_marker_index + 2 ..];
     }
     options.writer.writeAll(buffer) catch return error.WriteFailed;
+    options.writer.flush() catch return error.WriteFailed;
 }
 
 fn printHelp() void {
@@ -144,10 +145,10 @@ pub fn main() !void {
         printHelp();
         return error.NoOutputDirectory;
     };
-    var template_paths = std.ArrayList([]const u8).init(alloc);
-    defer template_paths.deinit();
+    var template_paths: std.ArrayList([]const u8) = .empty;
+    defer template_paths.deinit(alloc);
     while (args.next()) |arg| {
-        try template_paths.append(arg);
+        try template_paths.append(alloc, arg);
     }
 
     var input_dir = try std.fs.cwd().openDir(input_path, .{ .iterate = true });
@@ -184,8 +185,11 @@ pub fn main() !void {
         const output_file = try output_dir.createFile(entry.path, .{});
         defer output_file.close();
 
+        var buffer: [4096]u8 = undefined;
+        var writer = output_file.writer(&buffer);
+
         try performReplacementStream(file_contents, .{
-            .writer = output_file.writer().any(),
+            .writer = &writer.interface,
             .template_map = template_map,
         });
     }
