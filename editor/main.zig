@@ -37,6 +37,15 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
     if (state.thread) |_| {
         return;
     }
+    const enable_editor: bool = if (std.mem.eql(u8, site_type, "editor")) blk: {
+        break :blk true;
+    } else if (std.mem.eql(u8, site_type, "production")) blk: {
+        break :blk false;
+    } else {
+        @panic("unexpected site type");
+    };
+    _ = enable_editor;
+
     const address = std.net.Address.initIp4(.{127,0,0,1}, 0);
     var tcp_server = address.listen(.{ .reuse_address = true }) catch |e| {
         context.returnError(@errorName(e)) catch |e2| {

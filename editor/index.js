@@ -25,7 +25,8 @@
 
 let frontPage = document.getElementById("front-page");
 let hostingPage = document.getElementById("hosting-page");
-let pageTitle = document.getElementById("page-title");
+let hostingPageTitle = document.getElementById("hosting-page-title");
+let siteLink = document.getElementById("site-link");
 
 let openProduction = document.getElementById("open-production");
 let openEditor = document.getElementById("open-editor");
@@ -39,13 +40,25 @@ function setPage(page) {
 }
 openProduction.addEventListener("click", () => {
     setPage(hostingPage);
-    pageTitle.textContent = "Previewing production site";
-    window.backendHostSite("production");
+    hostingPageTitle.textContent = "Previewing production site";
+    siteLink.textContent = "Loading...";
+
+    window.backendHostSite("production").then(info => {
+        siteLink.textContent = "http://localhost:" + info.port + "/";
+    }).catch(e => {
+        siteLink.textContent = "Error loading site: " + e;
+    });
 });
 openEditor.addEventListener("click", () => {
     setPage(hostingPage);
-    pageTitle.textContent = "Hosting site with editor";
-    window.backendHostSite("editor");
+    hostingPageTitle.textContent = "Hosting site with editor";
+    siteLink.textContent = "Loading...";
+
+    window.backendHostSite("editor").then(info => {
+        siteLink.textContent = "http://localhost:" + info.port + "/";
+    }).catch(e => {
+        siteLink.textContent = "Error loading site: " + e;
+    });
 });
 backButton.addEventListener("click", () => {
     setPage(frontPage);
