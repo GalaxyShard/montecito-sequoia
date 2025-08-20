@@ -6,12 +6,21 @@ pub fn build(b: *std.Build) !void {
 
     const editor_step = b.step("editor", "Compile the editor executable");
     const run_editor_step = b.step("run-editor", "Run the editor executable");
+    const check_step = b.step("check", "Check for compile errors");
     const pnpm_enabled = b.option(bool, "pnpm", "Run pnpm before compiling (default: true)") orelse true;
 
 
 
     const editor = b.addExecutable(.{
         .name = "montecito-site-editor",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = b.path("editor/main.zig"),
+        }),
+    });
+    const check_editor = b.addExecutable(.{
+        .name = "check-montecito-site-editor",
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
@@ -76,6 +85,11 @@ pub fn build(b: *std.Build) !void {
     editor.root_module.addAnonymousImport("index.html", .{
         .root_source_file = editor_index_html,
     });
+    check_editor.root_module.addAnonymousImport("index.html", .{
+        // note: this file should normally be processed by generate-html,
+        // but this step is only used for checking the Zig code so it doesn't matter
+        .root_source_file = b.path("editor/index.html"),
+    });
 
 
     b.installArtifact(generate_html);
@@ -86,10 +100,13 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     editor.root_module.addImport("Webview", webview.module("Webview"));
+    check_editor.root_module.addImport("Webview", webview.module("Webview"));
 
     const run_editor = b.addRunArtifact(editor);
     run_editor_step.dependOn(&run_editor.step);
 
     editor_step.dependOn(&b.addInstallArtifact(editor, .{}).step);
     b.getInstallStep().dependOn(editor_step);
+
+    check_step.dependOn(&check_editor.step);
 }
