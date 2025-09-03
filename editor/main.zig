@@ -101,7 +101,7 @@ fn serverThread2(state: *State) !void {
 
     var http_server = std.http.Server.init(http_reader.interface(), &http_writer.interface);
 
-    outer: while (true) {
+    while (true) {
         var request = try http_server.receiveHead();
 
         const page = request.head.target;
@@ -109,23 +109,6 @@ fn serverThread2(state: *State) !void {
         defer state.alloc.free(path);
 
         std.debug.print("sending {s}\n", .{path});
-        std.debug.print("allow? (y/n): ", .{});
-        const stdin_file = std.fs.File.stdin();
-        var stdin = stdin_file.reader(&.{});
-        while (true) {
-            var stdin_buf: [2]u8 = @splat(0);
-            try stdin.interface.readSliceAll(&stdin_buf);
-            if (stdin_buf[0] == 'y') {
-                std.debug.print("allowed\n", .{});
-                break;
-            } else if (stdin_buf[0] == 'n') {
-                std.debug.print("disallowed\n", .{});
-                try request.respond("", .{ .status = .not_found });
-                continue :outer;
-            } else {
-                std.debug.print("expected 'y' or 'n', found '{s}'\n", .{stdin_buf});
-            }
-        }
         const file = try std.fs.cwd().openFile(path, .{});
         var reader = file.reader(&.{});
         // no file should be >64MB
