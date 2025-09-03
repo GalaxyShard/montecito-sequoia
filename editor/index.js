@@ -26,6 +26,7 @@
 let frontPage = document.getElementById("front-page");
 let hostingPage = document.getElementById("hosting-page");
 let hostingPageTitle = document.getElementById("hosting-page-title");
+let webserverStatus = document.getElementById("status");
 let siteLink = document.getElementById("site-link");
 
 let openProduction = document.getElementById("open-production");
@@ -41,23 +42,27 @@ function setPage(page) {
 openProduction.addEventListener("click", () => {
     setPage(hostingPage);
     hostingPageTitle.textContent = "Previewing production site";
-    siteLink.textContent = "Loading...";
+    webserverStatus.textContent = "Loading...";
 
     window.backendHostSite("production").then(info => {
+        webserverStatus.textContent = "";
+        siteLink.href = "http://localhost:" + info.port + "/";
         siteLink.textContent = "http://localhost:" + info.port + "/";
     }).catch(e => {
-        siteLink.textContent = "Error loading site: " + e;
+        webserverStatus.textContent = "Error loading site: " + e;
     });
 });
 openEditor.addEventListener("click", () => {
     setPage(hostingPage);
     hostingPageTitle.textContent = "Hosting site with editor";
-    siteLink.textContent = "Loading...";
+    webserverStatus.textContent = "Loading...";
 
     window.backendHostSite("editor").then(info => {
+        webserverStatus.textContent = "";
+        siteLink.href = "http://localhost:" + info.port + "/";
         siteLink.textContent = "http://localhost:" + info.port + "/";
     }).catch(e => {
-        siteLink.textContent = "Error loading site: " + e;
+        webserverStatus.textContent = "Error loading site: " + e;
     });
 });
 backButton.addEventListener("click", () => {
