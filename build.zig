@@ -95,6 +95,7 @@ pub fn build(b: *std.Build) !void {
     });
     editor.root_module.addImport("clipboard", b.dependency("clipboard", .{}).module("clipboard"));
     editor.root_module.addImport("Webview", webview.module("Webview"));
+    check_editor.root_module.addImport("clipboard", b.dependency("clipboard", .{}).module("clipboard"));
     check_editor.root_module.addImport("Webview", webview.module("Webview"));
 
     const run_editor = b.addRunArtifact(editor);
