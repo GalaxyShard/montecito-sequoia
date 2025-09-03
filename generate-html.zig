@@ -2,11 +2,7 @@ const std = @import("std");
 
 const TemplateMap = std.StringHashMap([]const u8);
 
-const ExpansionError = error{
-    UnterminatedExpansion,
-    UnknownExpansion,
-    WriteFailed
-};
+const ExpansionError = error{ UnterminatedExpansion, UnknownExpansion, WriteFailed };
 
 const ReplacementOptions = struct {
     writer: *std.Io.Writer,
@@ -42,8 +38,7 @@ fn performReplacementStream(original: []const u8, options: ReplacementOptions) E
         const end_marker_index = std.mem.indexOf(u8, buffer, "}}") orelse return error.UnterminatedExpansion;
 
         options.writer.writeAll(buffer[0..start_index]) catch return error.WriteFailed;
-        var directives = std.mem.splitScalar(u8, buffer[start_index+2..end_marker_index], ':');
-
+        var directives = std.mem.splitScalar(u8, buffer[start_index + 2 .. end_marker_index], ':');
 
         const id = directives.first();
         const directive = blk: {
@@ -82,7 +77,7 @@ fn generateTemplateMap(alloc: std.mem.Allocator, paths: []const []const u8) !Tem
     errdefer freeTemplateMap(alloc, map);
 
     // no files larger than 32 MiB
-    const size_cap = 1024*1024*32;
+    const size_cap = 1024 * 1024 * 32;
 
     for (paths) |path| {
         var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |e_dir| switch (e_dir) {
@@ -178,7 +173,7 @@ pub fn main() !void {
             continue;
         }
         // no HTML files larger than 32 MiB
-        const size_cap = 1024*1024*32;
+        const size_cap = 1024 * 1024 * 32;
         const file_contents = try entry.dir.readFileAlloc(alloc, entry.basename, size_cap);
         defer alloc.free(file_contents);
 
