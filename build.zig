@@ -9,8 +9,6 @@ pub fn build(b: *std.Build) !void {
     const check_step = b.step("check", "Check for compile errors");
     const pnpm_enabled = b.option(bool, "pnpm", "Run pnpm before compiling (default: true)") orelse true;
 
-
-
     const editor = b.addExecutable(.{
         .name = "montecito-site-editor",
         .root_module = b.createModule(.{
@@ -36,8 +34,6 @@ pub fn build(b: *std.Build) !void {
     // the ZLS build runner.
     _ = run_pnpm.captureStdOut();
 
-
-
     const generate_html = b.addExecutable(.{
         .name = "generate-html",
         .root_module = b.createModule(.{
@@ -46,28 +42,28 @@ pub fn build(b: *std.Build) !void {
             .root_source_file = b.path("generate-html.zig"),
         }),
     });
+
     if (pnpm_enabled) {
         generate_html.step.dependOn(&run_pnpm.step);
     }
 
     const generate_site = b.addRunArtifact(generate_html);
     generate_site.addDirectoryArg(b.path("site"));
-    const output_site = generate_site.addOutputDirectoryArg("site");
+    const output_site = generate_site.addOutputDirectoryArg("site-build");
     generate_site.addDirectoryArg(b.path("site/template"));
 
     b.getInstallStep().dependOn(&b.addInstallDirectory(.{
         .source_dir = output_site,
-        .install_dir = .{ .custom = "site" },
-        .install_subdir = "",
+        .install_dir = .bin,
+        .install_subdir = "site-build",
     }).step);
 
     // note: depends on `pnpm install` having been run
     b.getInstallStep().dependOn(&b.addInstallFileWithDir(
         b.path("node_modules/bootstrap/dist/css/bootstrap.min.css"),
-        .{ .custom = "site" },
-        "bootstrap.min.css"
+        .{ .custom = "bin/site-build" },
+        "bootstrap.min.css",
     ).step);
-
 
     const generate_editor_app = b.addRunArtifact(generate_html);
 
@@ -91,9 +87,7 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("editor/index.html"),
     });
 
-
     b.installArtifact(generate_html);
-
 
     const webview = b.dependency("webview", .{
         .target = target,
@@ -105,8 +99,10 @@ pub fn build(b: *std.Build) !void {
     const run_editor = b.addRunArtifact(editor);
     run_editor_step.dependOn(&run_editor.step);
 
-    editor_step.dependOn(&b.addInstallArtifact(editor, .{}).step);
+    const install_editor = b.addInstallArtifact(editor, .{});
+    editor_step.dependOn(&install_editor.step);
     b.getInstallStep().dependOn(editor_step);
+    run_editor.step.dependOn(&install_editor.step);
 
     check_step.dependOn(&check_editor.step);
 }
