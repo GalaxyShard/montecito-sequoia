@@ -93,6 +93,7 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    editor.root_module.addImport("clipboard", b.dependency("clipboard", .{}).module("clipboard"));
     editor.root_module.addImport("Webview", webview.module("Webview"));
     check_editor.root_module.addImport("Webview", webview.module("Webview"));
 

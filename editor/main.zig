@@ -2,6 +2,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Webview = @import("Webview");
 
+const clipboard = @import("clipboard");
+
 const html = @embedFile("index.html");
 
 const State = struct {
@@ -43,7 +45,15 @@ pub fn main() !void {
     const stop_hosting = try webview.bind(alloc, "backendStopHosting", &stopHosting, .{&state});
     defer stop_hosting.deinit();
 
+    const copy_to_clipboard = try webview.bind(alloc, "backendCopyToClipboard", &copyToClipboard, .{});
+    defer copy_to_clipboard.deinit();
+
     try webview.run();
+}
+
+fn copyToClipboard(context: Webview.BindContext, text: []const u8) void {
+    _ = context;
+    clipboard.write(text) catch |e| std.debug.print("error copying to clipboard: {t}\n", .{e});
 }
 
 fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) void {

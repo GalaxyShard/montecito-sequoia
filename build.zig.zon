@@ -10,6 +10,12 @@
             .url = "git+https://codeberg.org/galaxyshard/zig-webview.git#28eeb3a4e3e06459771e5aae915796717a0b102a",
             .hash = "webview-0.0.0-XQYxC9YQIgDyLcnP2nNP3ZWVqD6k5ypk2RU84s90tqTi",
         },
+
+        // zig fetch --save git+https://github.com/dgv/clipboard
+        .clipboard = .{
+            .url = "git+https://github.com/dgv/clipboard#0ba2e06f3ade58237a45c4f3321884dee2aba775",
+            .hash = "clipboard-0.1.0-4y-6fXgjAAAG9lcF33e0cBPUg-ynG3L6vvPYgei-gokt",
+        },
     },
 
     .paths = .{

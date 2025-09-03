@@ -46,7 +46,6 @@ openProduction.addEventListener("click", () => {
 
     window.backendHostSite("production").then(info => {
         webserverStatus.textContent = "";
-        siteLink.href = "http://localhost:" + info.port + "/";
         siteLink.textContent = "http://localhost:" + info.port + "/";
     }).catch(e => {
         webserverStatus.textContent = "Error loading site: " + e;
@@ -59,7 +58,6 @@ openEditor.addEventListener("click", () => {
 
     window.backendHostSite("editor").then(info => {
         webserverStatus.textContent = "";
-        siteLink.href = "http://localhost:" + info.port + "/";
         siteLink.textContent = "http://localhost:" + info.port + "/";
     }).catch(e => {
         webserverStatus.textContent = "Error loading site: " + e;
@@ -68,4 +66,16 @@ openEditor.addEventListener("click", () => {
 backButton.addEventListener("click", () => {
     setPage(frontPage);
     window.backendStopHosting();
+});
+
+siteLink.addEventListener("click", () => {
+    let url = siteLink.textContent;
+    if (!url.startsWith("http")) {
+        return;
+    }
+
+    // TypeError: undefined is not an object (evaluating 'navigator.clipboard.writeText')
+    // navigator.clipboard.writeText(url);
+
+    window.backendCopyToClipboard(url);
 });
