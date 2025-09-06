@@ -58,11 +58,24 @@ pub fn build(b: *std.Build) !void {
         .install_subdir = "site-build",
     }).step);
 
+    b.getInstallStep().dependOn(&b.addInstallFileWithDir(
+        b.path("editor/inject/editor.css"),
+        .{ .custom = "bin/site-build" },
+        "editor.css",
+    ).step);
+
     // note: depends on `pnpm install` having been run
     b.getInstallStep().dependOn(&b.addInstallFileWithDir(
         b.path("node_modules/bootstrap/dist/css/bootstrap.min.css"),
         .{ .custom = "bin/site-build" },
         "bootstrap.min.css",
+    ).step);
+
+    // note: depends on `pnpm install` having been run
+    b.getInstallStep().dependOn(&b.addInstallFileWithDir(
+        b.path("node_modules/quill/dist/quill.snow.css"),
+        .{ .custom = "bin/site-build" },
+        "quill.snow.css",
     ).step);
 
     const generate_editor_app = b.addRunArtifact(generate_html);

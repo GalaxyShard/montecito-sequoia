@@ -22,6 +22,8 @@ const State = struct {
     // used by all threads
     alloc: std.mem.Allocator,
     shutdown: std.atomic.Value(bool) = .init(false),
+
+    site_mode: enum { editor, production },
 };
 
 pub fn main() !void {
@@ -47,6 +49,7 @@ pub fn main() !void {
     var state: State = .{
         .thread = null,
         .tcp_server = undefined,
+        .site_mode = undefined,
         .alloc = alloc,
         .site_dir = site_dir,
     };
@@ -73,14 +76,13 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
     if (state.thread) |_| {
         return;
     }
-    const enable_editor: bool = if (std.mem.eql(u8, site_type, "editor")) blk: {
-        break :blk true;
+    state.site_mode = if (std.mem.eql(u8, site_type, "editor")) blk: {
+        break :blk .editor;
     } else if (std.mem.eql(u8, site_type, "production")) blk: {
-        break :blk false;
+        break :blk .production;
     } else {
         std.debug.panic("unexpected site type '{s}'", .{site_type});
     };
-    _ = enable_editor;
 
     const address = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 0);
     state.tcp_server = address.listen(.{ .reuse_address = true, .force_nonblocking = true }) catch |e| {
@@ -243,14 +245,37 @@ fn serverThread3(client: std.net.Server.Connection, id: u16, state: *State) !voi
                 return error.UnknownFileExtension
         );
 
-        try request.respond(file_contents, .{
-            .extra_headers = &.{
-                .{
-                    .name = "Content-Type",
-                    .value = mime,
-                },
-            }
-        });
+        if (state.site_mode == .editor and std.mem.eql(u8, extension, ".html")) blk: {
+            const index_start = std.mem.indexOf(u8, file_contents, "</title>\n") orelse {
+                std.debug.print("unable to find end of title tag (cannot initialize editor)\n", .{});
+                break :blk;
+            };
+            const index = index_start+"</title>\n".len;
+            const append = (
+                \\    <script type="module" src="/editor.js"></script>
+                \\    <link rel="stylesheet" href="/editor.css">
+                \\
+            );
+            const response = try std.mem.join(state.alloc, "", &.{ file_contents[0..index], append, file_contents[index..] });
+            defer state.alloc.free(response);
+            try request.respond(response, .{
+                .extra_headers = &.{
+                    .{
+                        .name = "Content-Type",
+                        .value = mime,
+                    },
+                }
+            });
+        } else {
+            try request.respond(file_contents, .{
+                .extra_headers = &.{
+                    .{
+                        .name = "Content-Type",
+                        .value = mime,
+                    },
+                }
+            });
+        }
     }
 }
 
