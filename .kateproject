@@ -1,0 +1,11 @@
+{
+  "lspclient": {
+    "servers": {
+      "zig": {
+        "settings": {
+          "zig_lib_path": "/home/galaxyshard/projects/zig-fork/lib"
+        }
+      }
+    }
+  }
+}

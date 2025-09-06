@@ -1,0 +1,108 @@
+@import "quill.snow.css";
+
+hr { /* Make hr elements easier to click on in the editor */
+    padding:2px 0px;
+}
+.editor-hover-element {
+    outline:2px dashed #007bff;
+    outline-offset:1px;
+    margin-bottom:0 !important;
+}
+p.editor-hover-element {
+    margin-bottom:0px;
+}
+.editor-container {
+    margin:1em 0;
+    border:1px solid black;
+    border-radius:5px;
+
+    display:flex;
+    flex-direction: column;
+    
+    background-color: white;
+    color:black;
+}
+.editor {
+    width:100%;
+    border-radius:5px;
+    
+    background-color: #f0f0f0;
+    padding:2px;
+}
+.editor > div {
+    outline:none;
+}
+.editor-container label {
+    display:block;
+    margin:5px 0;
+    padding:5px;
+    text-align: center;
+    line-height:2em;
+}
+.editor-container input {
+    width:100%;
+}
+
+
+.editor-toolbar {
+    display:flex;
+    flex-wrap:wrap;
+    flex-direction: row;
+    justify-content: space-around;
+}
+.editor-dropdown {
+    flex-direction:column;
+    background-color: #f0f0f0;
+    border-radius:5px;
+}
+.editor-toolbar > button {
+    color:#007bff;
+    
+    flex-grow:1;
+    background-color: white;
+    border:none;
+    text-align: center;
+    padding:5px 10px;
+    margin:5px;
+    border-radius:5px;
+    min-width:40px;
+}
+.editor-toolbar > button:hover {
+    background-color: #f0f0f0;
+}
+.editor-toolbar > button:active {
+    background-color: #e0e0e0;
+}
+.editor-cancel {
+    color:red !important;
+}
+.editor-save {
+    color:#007bff;
+}
+.editor-down-button::after {
+    content: ">";
+    font-style: normal;
+    transform:rotate(90deg);
+    display:inline-block;
+}
+.editor-up-button::after {
+    content: ">";
+    font-style: normal;
+    transform:rotate(-90deg);
+    display:inline-block;
+}
+
+
+/* Values taken from Bootstrap (MIT licensed) */
+/* .editor h1 { font-size: calc(1.375rem + 1.5vw) !important; }
+.editor h2 { font-size: calc(1.325rem + 0.9vw) !important; }
+.editor h3 { font-size: calc(1.3rem + 0.6vw) !important; }
+.editor h4 { font-size: calc(1.275rem + 0.3vw) !important; }
+.editor h5 { font-size: 1.25rem !important; }
+.editor h6 { font-size: 1rem !important; }
+@media (min-width: 1200px) {
+    .editor h1 { font-size: 2.5rem !important; }
+    .editor h2 { font-size: 2rem !important; }
+    .editor h3 { font-size: 1.75rem !important; }
+    .editor h4 { font-size: 1.5rem !important; }
+} */

@@ -1,0 +1,4 @@
+.zig-cache
+zig-out
+pnpm-lock.yaml
+node_modules

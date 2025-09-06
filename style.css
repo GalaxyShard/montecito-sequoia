@@ -1,0 +1,355 @@
+@import "bootstrap.min.css";
+
+@font-face {
+    font-family: DancingScript;
+    font-weight: normal;
+    font-style: normal;
+    src: url("/assets/dancing-script.woff2") format("woff2");
+}
+
+/*
+    #8B4513  Brown
+    #004000  Tree Green
+    #000040  Dark Blue
+    #40C0FF  Light Blue
+*/
+:root {
+    background-color: #004000;
+}
+p { /* Undo Bootstrap styling */
+    margin-top:1rem;
+    margin-bottom:1rem;
+}
+.row {
+    --bs-gutter-x:0;
+}
+
+.alert > p:first-child, li > p:first-child {
+    margin-top:0;
+}
+.alert > p:last-child, li > p:last-child {
+    margin-bottom:0;
+}
+body {
+    background-color: #ffffff;
+    min-height:100vh;
+
+    position:relative;
+    padding-bottom:250px;
+}
+
+footer {
+    background-color: #8B4513;
+    color:white;
+    text-align: center;
+
+    position:absolute;
+    bottom:0;
+    left:0;
+    right:0;
+}
+footer a {
+    color:white;
+    line-height:1.75em;
+}
+h1 {
+    padding:20px 0px 10px 0px;
+}
+h1,h2,h3,h4,h5,h6 {
+    font-weight:normal;
+}
+
+
+
+.max-size {
+    max-width:900px;
+    box-sizing:border-box;
+    margin-left: auto;
+    margin-right: auto;
+}
+.cursive {
+    font-family:DancingScript, cursive;
+}
+.link-button-log {
+    display:block;
+    padding:10px 20px;
+    border-radius: 5px;
+
+    
+    text-decoration: none;
+    text-align: center;
+}
+.link-button-log {
+    background-color: #7B3503;
+    color:white;
+}
+.link-arrow, .book-now {
+    text-decoration: none;
+}
+/* margin exists to offset any text proceeding it, which does not apply to .link-button-log and .book-now */
+.link-arrow:not(.link-button-log) {
+    margin-right:3px;
+}
+.book-now {
+    color:#60c0ff;
+}
+.book-now:hover {
+    color:#40a0e0;
+}
+.book-now::after, .link-arrow::after {
+    display:inline-block;
+    transform:translateX(0);
+
+    content: "\a0>";
+    transition:.25s transform ease-out;
+}
+.book-now:hover::after, .link-arrow:hover::after {
+    transform:translateX(3px);
+}
+
+
+
+header {
+    background-color: #004000;
+    color:white;
+    text-align: center;
+}
+header > .row > div {
+    margin-bottom:20px;
+}
+header .description {
+    display:flex;
+    justify-content:center;
+    align-items: center;
+}
+header .logo-container {
+    align-items:center;
+}
+header .logo {
+    border-radius:100%;
+    object-fit: contain;
+    margin-left:10px;
+    margin-right:30px;
+    width:100px;
+    background-color: #ffffff;
+}
+header .description p {
+    align-items:center;
+    margin:0;
+    font-style: italic;
+}
+header .quick-link {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.phone-number {
+    color:white;
+    text-decoration: none;
+    line-height:1.75em;
+}
+
+
+
+nav {
+    background-color: #8B4513;
+    text-align: center;
+}
+nav .row {
+    justify-content: center;
+}
+nav .row > div {
+    padding:5px;
+    min-height:58px;
+    display:flex;
+    align-items: center;
+    justify-content: center;
+}
+nav a {
+    color:white;
+    text-decoration: none;
+    display:block;
+
+    position:relative;
+}
+nav > .row > div {
+    position:relative;
+}
+nav a::after {
+    content: "";
+    background-color:white;
+    display:block;
+
+    margin:0 auto;
+    width:100%;
+    height:1px;
+    
+    transform:scaleX(0%);
+    transition:transform .25s ease;
+}
+nav a:hover::after, nav a[data-current]::after {
+    transform:scaleX(100%);
+}
+
+/* nav a[data-current]::before {
+    content:attr(data-current);
+    content:"";
+    display:block;
+    position:absolute;
+
+    --width:5px;
+    border:var(--width) solid #00000000;
+    border-right-color:#ffffff;
+    left:calc(var(--width) * -2);
+    top:calc(100% - var(--width));
+} */
+
+
+
+#hero-container {
+    position:relative;
+    height:calc(280px + 5vw);
+    --image-max:700px;
+}
+#hero-container > * {
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+
+    transition:opacity 2s ease;
+    opacity:0;
+}
+#hero-container > .current {
+    opacity:1;
+}
+
+
+img-fitted {
+    width:100%;
+    /* height */
+
+    position:relative;
+    overflow:hidden;
+    display:block;
+
+}
+img-fitted::before {
+    display:block;
+    
+    --inset:-10px;
+    position:absolute;
+
+    top:var(--inset);
+    bottom:var(--inset);
+    left:var(--inset);
+    right:var(--inset);
+    width:calc(100% - var(--inset) * 2);
+    height:calc(100% - var(--inset) * 2);
+
+    filter:blur(5px);
+    background-size:cover;
+    background-position:50% 50%;
+    background-image:var(--image);
+    content: "";
+}
+img-fitted::after {
+    display:block;
+
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:0;
+    right:0;
+    width:100%;
+    height:100%;
+
+    max-width: var(--image-max);
+    margin:auto;
+
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+    background-size:cover;
+    background-image:var(--image);
+    content: "";
+
+}
+
+
+
+#awards > div {
+    display:flex;
+    justify-content: center;
+}
+#awards img {
+    overflow:clip; /* note: needed for safari to properly set width */
+    width:100%;
+    max-width: 125px;
+    object-fit: contain;
+    border-radius:5px;
+    margin:5px;
+}
+
+
+
+.activity {
+    display:block;
+    font-weight:bold;
+}
+.testimonial-name {
+    display:block;
+    font-style:italic;
+    font-weight:bold;
+}
+.testimonial-name::before {
+    content: "- ";
+}
+
+
+
+.room-options > div {
+    padding:15px 20px;
+    margin: 20px 0 50px 0;
+
+    background-color: #f0f0f0;
+    border:1px solid black;
+    border-radius:5px;
+
+    text-align: center;
+}
+.room-options img-fitted {
+    /* 200px, plus 10% of the main content's width (max 900px) */
+    height:calc(200px + min(10vw, 900px * 0.1));
+    border-radius:5px;
+    margin:10px 0;
+    --image-max:600px;
+}
+.room-options ul {
+    text-align:left;
+    padding-left:10px;
+}
+.room-options li {
+    padding: 3px;
+}
+.room-options .row > div {
+    padding:5px 0px;
+}
+
+
+
+.social-links {
+    display:flex;
+    justify-content: center;
+}
+.social-links > * {
+    text-decoration: none;
+    padding-left:5px;
+    padding-right:5px;
+}
+.social-links img {
+    width:40px;
+    height:40px;
+    border-radius:5px;
+    border:1px #000000 solid;
+}
