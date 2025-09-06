@@ -119,17 +119,87 @@ fn serverThread3(client: std.net.Server.Connection, state: *State) !void {
     while (true) {
         var request = try http_server.receiveHead();
 
-        const page = request.head.target;
-        const path = try std.mem.join(state.alloc, "", &.{ state.site_dir, page });
+        const page = request.head.target[1..]; // ignore leading `/`
+        if (hasDirectoryTraversal(page)) {
+            std.debug.print("not sending; path failed hasDirectoryTraversal: {s}\n", .{page});
+            try request.respond("404 not found", .{ .status = .not_found });
+            continue;
+        }
+
+        const file, const path = blk: {
+            const suffix = (
+                if (page.len == 0 or page[page.len-1] == '/')
+                    "index.html"
+                else if (std.fs.path.extension(page).len == 0)
+                    ".html"
+                else
+                    ""
+            );
+            var path = try std.mem.join(state.alloc, "", &.{ state.site_dir, "/", page, suffix });
+            errdefer state.alloc.free(path);
+
+            const file = std.fs.cwd().openFile(path, .{}) catch |e| blk1: {
+                if (page.len == 0 or page[page.len-1] == '/') {
+                    std.debug.print("404 not found ({t}) {s}\n", .{e, path});
+                    try request.respond("404 not found", .{ .status = .not_found });
+
+                    state.alloc.free(path);
+                    continue;
+                }
+                state.alloc.free(path);
+                path = try std.mem.join(state.alloc, "", &.{ state.site_dir, "/", page, "/index.html" });
+
+                break :blk1 std.fs.cwd().openFile(path, .{}) catch |e1| {
+                    std.debug.print("404 not found ({t}, {t}) {s}\n", .{e, e1, path});
+                    try request.respond("404 not found", .{ .status = .not_found });
+
+                    state.alloc.free(path);
+                    continue;
+                };
+            };
+
+            break :blk .{ file, path };
+        };
         defer state.alloc.free(path);
 
         std.debug.print("sending {s}\n", .{path});
-        const file = try std.fs.cwd().openFile(path, .{});
         var reader = file.reader(&.{});
         // no file should be >64MB
         const file_contents = try reader.interface.allocRemaining(state.alloc, .limited(1024 * 1024 * 64));
+        defer state.alloc.free(file_contents);
 
-        try request.respond(file_contents, .{});
+        const extension = std.fs.path.extension(path);
+        const mime = (
+            if (std.mem.eql(u8, extension, ".html"))
+                "text/html"
+            else if (std.mem.eql(u8, extension, ".css"))
+                "text/css"
+            else if (std.mem.eql(u8, extension, ".js"))
+                "text/javascript"
+            else if (std.mem.eql(u8, extension, ".svg"))
+                "image/svg+xml"
+            else if (std.mem.eql(u8, extension, ".jpg"))
+                "image/jpg"
+            else if (std.mem.eql(u8, extension, ".png"))
+                "image/png"
+            else if (std.mem.eql(u8, extension, ".webp"))
+                "image/webp"
+            else if (std.mem.eql(u8, extension, ".woff2"))
+                "font/woff2"
+            else if (std.mem.eql(u8, extension, ".pdf"))
+                "application/pdf"
+            else
+                return error.UnknownFileExtension
+        );
+
+        try request.respond(file_contents, .{
+            .extra_headers = &.{
+                .{
+                    .name = "Content-Type",
+                    .value = mime,
+                },
+            }
+        });
     }
 }
 
