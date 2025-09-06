@@ -7,10 +7,21 @@ const clipboard = @import("clipboard");
 const html = @embedFile("index.html");
 
 const State = struct {
+    // main thread deinitializes, server thread appends
+    clients: std.ArrayList(struct { stream: std.net.Stream, thread: std.Thread }) = .empty,
+
+    // used by main thread only
     thread: ?std.Thread,
+
+    // used by server-thread only
     tcp_server: std.net.Server,
+
+    // used by server-client threads
     site_dir: []const u8,
+
+    // used by all threads
     alloc: std.mem.Allocator,
+    shutdown: std.atomic.Value(bool) = .init(false),
 };
 
 pub fn main() !void {
@@ -39,6 +50,8 @@ pub fn main() !void {
         .alloc = alloc,
         .site_dir = site_dir,
     };
+    defer state.clients.deinit(state.alloc);
+
     const host_site = try webview.bind(alloc, "backendHostSite", &hostSite, .{&state});
     defer host_site.deinit();
 
@@ -70,7 +83,7 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
     _ = enable_editor;
 
     const address = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 0);
-    state.tcp_server = address.listen(.{ .reuse_address = true }) catch |e| {
+    state.tcp_server = address.listen(.{ .reuse_address = true, .force_nonblocking = true }) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("unrecoverable error: {t}\n", .{e2});
         };
@@ -85,27 +98,57 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
 }
 
 fn serverThread(state: *State) void {
+    state.shutdown.store(false, .monotonic);
+
+    defer {
+        std.debug.print("server shutdown\n", .{});
+        for (state.clients.items) |client| {
+            if (std.posix.shutdown(client.stream.handle, .both)) {
+                client.thread.join();
+            } else |e| {
+                std.debug.print("error shutting down client: {t}\n", .{e});
+                client.thread.detach();
+            }
+        }
+        state.clients.clearRetainingCapacity();
+        state.tcp_server.deinit();
+    }
+
     var id: u16 = 0;
     while (true) {
+        if (state.shutdown.load(.monotonic)) {
+            return;
+        }
         const client = state.tcp_server.accept() catch |e| {
-            std.debug.print("error accepting client: {t}\n", .{e});
-            if (e == error.SocketNotListening) {
-                break;
+            if (state.shutdown.load(.monotonic)) {
+                return;
             }
+            if (e == error.WouldBlock) {
+                // sleep for 10 ms
+                std.Thread.sleep(std.time.ns_per_ms * 10);
+                continue;
+            }
+            std.debug.print("error accepting client: {t}\n", .{e});
             continue;
         };
         std.debug.print("client: {}\n", .{id});
+
         const thread = std.Thread.spawn(.{}, serverThread2, .{client, id, state}) catch |e| std.debug.panic("{t}", .{e});
-        thread.detach();
+
+        state.clients.append(state.alloc, .{
+            .stream = client.stream,
+            .thread = thread,
+        }) catch |e| std.debug.panic("{t}", .{e});
+
         id += 1;
     }
 }
 fn serverThread2(client: std.net.Server.Connection, id: u16, state: *State) void {
-    serverThread3(client, state) catch |e| std.debug.print("server error: {t}\n client id: {}\n", .{e, id});
+    serverThread3(client, id, state) catch |e| std.debug.print("server error: {t}\n client id: {}\n", .{e, id});
 }
-fn serverThread3(client: std.net.Server.Connection, state: *State) !void {
+fn serverThread3(client: std.net.Server.Connection, id: u16, state: *State) !void {
     defer {
-        std.debug.print("client disconnect\n", .{});
+        std.debug.print("client disconnect {}\n", .{id});
     }
     defer client.stream.close();
 
@@ -115,7 +158,6 @@ fn serverThread3(client: std.net.Server.Connection, state: *State) !void {
     var http_reader = client.stream.reader(&http_in_buffer);
 
     var http_server = std.http.Server.init(http_reader.interface(), &http_writer.interface);
-
     while (true) {
         var request = try http_server.receiveHead();
 
@@ -216,9 +258,11 @@ fn stopHosting(context: Webview.BindContext, state: *State) void {
         return;
     }
 
-    // TODO: implement this function; stop the http server
+    state.shutdown.store(true, .monotonic);
+    state.thread.?.join();
+    state.thread = null;
 
-    context.returnError(void{}) catch |e| {
+    context.returnValue(void{}) catch |e| {
         std.debug.panic("unrecoverable error: {t}\n", .{e});
     };
 }
