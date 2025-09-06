@@ -210,6 +210,7 @@ fn serverThread3(client: std.net.Server.Connection, id: u16, state: *State) !voi
 
             break :blk .{ file, path };
         };
+        defer file.close();
         defer state.alloc.free(path);
 
         std.debug.print("sending {s}\n", .{path});
