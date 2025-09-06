@@ -85,13 +85,28 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
 }
 
 fn serverThread(state: *State) void {
+    var id: u16 = 0;
     while (true) {
-        serverThread2(state) catch |e| std.debug.print("server error: {t}\n", .{e});
-        std.debug.print("client disconnect\n", .{});
+        const client = state.tcp_server.accept() catch |e| {
+            std.debug.print("error accepting client: {t}\n", .{e});
+            if (e == error.SocketNotListening) {
+                break;
+            }
+            continue;
+        };
+        std.debug.print("client: {}\n", .{id});
+        const thread = std.Thread.spawn(.{}, serverThread2, .{client, id, state}) catch |e| std.debug.panic("{t}", .{e});
+        thread.detach();
+        id += 1;
     }
 }
-fn serverThread2(state: *State) !void {
-    const client = try state.tcp_server.accept();
+fn serverThread2(client: std.net.Server.Connection, id: u16, state: *State) void {
+    serverThread3(client, state) catch |e| std.debug.print("server error: {t}\n client id: {}\n", .{e, id});
+}
+fn serverThread3(client: std.net.Server.Connection, state: *State) !void {
+    defer {
+        std.debug.print("client disconnect\n", .{});
+    }
     defer client.stream.close();
 
     var http_in_buffer: [1024 * 8]u8 = undefined;
