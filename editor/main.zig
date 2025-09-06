@@ -119,10 +119,18 @@ fn serverThread3(client: std.net.Server.Connection, state: *State) !void {
     while (true) {
         var request = try http_server.receiveHead();
 
+        if (request.head.target.len == 0 or request.head.target[0] != '/') {
+            std.debug.print("404: no leading '/'\n", .{});
+            try request.respond("404 not found", .{ .status = .not_found });
+
+            continue;
+        }
+
         const page = request.head.target[1..]; // ignore leading `/`
         if (hasDirectoryTraversal(page)) {
             std.debug.print("not sending; path failed hasDirectoryTraversal: {s}\n", .{page});
             try request.respond("404 not found", .{ .status = .not_found });
+
             continue;
         }
 
