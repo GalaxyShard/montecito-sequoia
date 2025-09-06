@@ -27,15 +27,18 @@ let frontPage = document.getElementById("front-page");
 let hostingPage = document.getElementById("hosting-page");
 let hostingPageTitle = document.getElementById("hosting-page-title");
 let webserverStatus = document.getElementById("status");
-let siteLink = document.getElementById("site-link");
+let copyLink = document.getElementById("copy-link");
 
 let openProduction = document.getElementById("open-production");
 let openEditor = document.getElementById("open-editor");
 let backButton = document.getElementById("back-button");
 
+let linkButtons = document.getElementById("link-buttons");
+
 function setPage(page) {
     frontPage.hidden = true;
     hostingPage.hidden = true;
+    linkButtons.hidden = true;
 
     page.hidden = false;
 }
@@ -45,8 +48,8 @@ openProduction.addEventListener("click", () => {
     webserverStatus.textContent = "Loading...";
 
     window.backendHostSite("production").then(info => {
-        webserverStatus.textContent = "";
-        siteLink.textContent = "http://localhost:" + info.port + "/";
+        webserverStatus.textContent = "http://localhost:" + info.port + "/";
+        linkButtons.hidden = false;
     }).catch(e => {
         webserverStatus.textContent = "Error loading site: " + e;
     });
@@ -57,8 +60,8 @@ openEditor.addEventListener("click", () => {
     webserverStatus.textContent = "Loading...";
 
     window.backendHostSite("editor").then(info => {
-        webserverStatus.textContent = "";
-        siteLink.textContent = "http://localhost:" + info.port + "/";
+        webserverStatus.textContent = "http://localhost:" + info.port + "/";
+        linkButtons.hidden = false;
     }).catch(e => {
         webserverStatus.textContent = "Error loading site: " + e;
     });
@@ -68,8 +71,8 @@ backButton.addEventListener("click", () => {
     window.backendStopHosting();
 });
 
-siteLink.addEventListener("click", () => {
-    let url = siteLink.textContent;
+copyLink.addEventListener("click", () => {
+    let url = webserverStatus.textContent;
     if (!url.startsWith("http")) {
         return;
     }

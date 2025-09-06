@@ -29,21 +29,6 @@ button:active {
     background-color: #40acff;
 }
 
-#site-link {
-    display: inline;
-
-    padding: 0;
-    margin: 0;
-    width: auto;
-    border-radius: 0;
-
-    background-color: #00000000;
-    border: none;
-    text-shadow: none;
-    color: #008cff;
-    font-size: 1em;
-}
-
 #hosting-page {
     text-align:center;
 }
