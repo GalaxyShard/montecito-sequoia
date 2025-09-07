@@ -163,6 +163,23 @@ fn serverThread3(client: std.net.Server.Connection, id: u16, state: *State) !voi
     while (true) {
         var request = try http_server.receiveHead();
 
+        if (request.head.method == .POST and std.mem.eql(u8, request.head.target, "/post")) {
+            std.debug.print("recieved POST\n", .{});
+            var buffer: [1024]u8 = undefined;
+            const reader = request.server.reader.bodyReader(&buffer, request.head.transfer_encoding, request.head.content_length);
+            const body = try reader.allocRemaining(state.alloc, .limited(1024*1024));
+            defer state.alloc.free(body);
+
+            std.debug.print("body: {s}\n", .{body});
+            try request.respond("", .{ .status = .ok });
+
+            continue;
+        } else if (request.head.method != .GET) {
+            std.debug.print("404: unexpected request method {t}\n", .{request.head.method});
+            try request.respond("404 not found", .{ .status = .not_found });
+            continue;
+        }
+
         if (request.head.target.len == 0 or request.head.target[0] != '/') {
             std.debug.print("404: no leading '/'\n", .{});
             try request.respond("404 not found", .{ .status = .not_found });
