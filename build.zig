@@ -26,14 +26,6 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
-    const pnpm = b.findProgram(&.{"pnpm"}, &.{}) catch {
-        @panic("pnpm not found in PATH; pnpm is required to perform a full build");
-    };
-    const run_pnpm = b.addSystemCommand(&.{ pnpm, "run", "build" });
-    // Normally stdout is forwarded, causing errors with
-    // the ZLS build runner.
-    _ = run_pnpm.captureStdOut();
-
     const generate_html = b.addExecutable(.{
         .name = "generate-html",
         .root_module = b.createModule(.{
@@ -44,7 +36,11 @@ pub fn build(b: *std.Build) !void {
     });
 
     if (pnpm_enabled) {
-        generate_html.step.dependOn(&run_pnpm.step);
+        const pnpm = b.findProgram(&.{"pnpm"}, &.{}) catch {
+            @panic("pnpm not found in PATH; pnpm is required to perform a full build");
+        };
+        const run_pnpm = b.addSystemCommand(&.{ pnpm, "run", "build" });
+        b.getInstallStep().dependOn(&run_pnpm.step);
     }
 
     const generate_site = b.addRunArtifact(generate_html);
