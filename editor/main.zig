@@ -202,119 +202,124 @@ fn serverThread3(client: std.net.Server.Connection, id: usize, state: *State) !v
             continue;
         }
 
-        if (request.head.target.len == 0 or request.head.target[0] != '/') {
-            std.debug.print("404: no leading '/'\n", .{});
-            try request.respond("404 not found", .{ .status = .not_found });
+        try handleGet(&request, state);
+    }
+}
 
-            continue;
-        }
+fn handleGet(request: *std.http.Server.Request, state: *State) !void {
 
-        const page = request.head.target[1..]; // ignore leading `/`
-        if (hasDirectoryTraversal(page)) {
-            std.debug.print("not sending; path failed hasDirectoryTraversal: {s}\n", .{page});
-            try request.respond("404 not found", .{ .status = .not_found });
+    if (request.head.target.len == 0 or request.head.target[0] != '/') {
+        std.debug.print("404: no leading '/'\n", .{});
+        try request.respond("404 not found", .{ .status = .not_found });
 
-            continue;
-        }
+        return;
+    }
 
-        const file, const path = blk: {
-            const suffix = (
-                if (page.len == 0 or page[page.len-1] == '/')
-                    "index.html"
-                else if (std.fs.path.extension(page).len == 0)
-                    ".html"
-                else
-                    ""
-            );
-            var path = try std.mem.join(state.alloc, "", &.{ state.site_dir, "/", page, suffix });
-            errdefer state.alloc.free(path);
+    const page = request.head.target[1..]; // ignore leading `/`
+    if (hasDirectoryTraversal(page)) {
+        std.debug.print("not sending; path failed hasDirectoryTraversal: {s}\n", .{page});
+        try request.respond("404 not found", .{ .status = .not_found });
 
-            const file = std.fs.cwd().openFile(path, .{}) catch |e| blk1: {
-                if (page.len == 0 or page[page.len-1] == '/') {
-                    std.debug.print("404 not found ({t}) {s}\n", .{e, path});
-                    try request.respond("404 not found", .{ .status = .not_found });
+        return;
+    }
 
-                    state.alloc.free(path);
-                    continue;
-                }
-                state.alloc.free(path);
-                path = try std.mem.join(state.alloc, "", &.{ state.site_dir, "/", page, "/index.html" });
-
-                break :blk1 std.fs.cwd().openFile(path, .{}) catch |e1| {
-                    std.debug.print("404 not found ({t}, {t}) {s}\n", .{e, e1, path});
-                    try request.respond("404 not found", .{ .status = .not_found });
-
-                    state.alloc.free(path);
-                    continue;
-                };
-            };
-
-            break :blk .{ file, path };
-        };
-        defer file.close();
-        defer state.alloc.free(path);
-
-        std.debug.print("sending {s}\n", .{path});
-        var reader = file.reader(&.{});
-        // no file should be >64MB
-        const file_contents = try reader.interface.allocRemaining(state.alloc, .limited(1024 * 1024 * 64));
-        defer state.alloc.free(file_contents);
-
-        const extension = std.fs.path.extension(path);
-        const mime = (
-            if (std.mem.eql(u8, extension, ".html"))
-                "text/html"
-            else if (std.mem.eql(u8, extension, ".css"))
-                "text/css"
-            else if (std.mem.eql(u8, extension, ".js"))
-                "text/javascript"
-            else if (std.mem.eql(u8, extension, ".svg"))
-                "image/svg+xml"
-            else if (std.mem.eql(u8, extension, ".jpg"))
-                "image/jpg"
-            else if (std.mem.eql(u8, extension, ".png"))
-                "image/png"
-            else if (std.mem.eql(u8, extension, ".webp"))
-                "image/webp"
-            else if (std.mem.eql(u8, extension, ".woff2"))
-                "font/woff2"
-            else if (std.mem.eql(u8, extension, ".pdf"))
-                "application/pdf"
+    const file, const path = blk: {
+        const suffix = (
+            if (page.len == 0 or page[page.len-1] == '/')
+                "index.html"
+            else if (std.fs.path.extension(page).len == 0)
+                ".html"
             else
-                return error.UnknownFileExtension
+                ""
         );
+        var path = try std.mem.join(state.alloc, "", &.{ state.site_dir, "/", page, suffix });
+        errdefer state.alloc.free(path);
 
-        if (state.site_mode == .editor and std.mem.eql(u8, extension, ".html")) blk: {
-            const index_start = std.mem.indexOf(u8, file_contents, "</title>\n") orelse {
-                std.debug.print("unable to find end of title tag (cannot initialize editor)\n", .{});
-                break :blk;
+        const file = std.fs.cwd().openFile(path, .{}) catch |e| blk1: {
+            if (page.len == 0 or page[page.len-1] == '/') {
+                std.debug.print("404 not found ({t}) {s}\n", .{e, path});
+                try request.respond("404 not found", .{ .status = .not_found });
+
+                state.alloc.free(path);
+                return;
+            }
+            state.alloc.free(path);
+            path = try std.mem.join(state.alloc, "", &.{ state.site_dir, "/", page, "/index.html" });
+
+            break :blk1 std.fs.cwd().openFile(path, .{}) catch |e1| {
+                std.debug.print("404 not found ({t}, {t}) {s}\n", .{e, e1, path});
+                try request.respond("404 not found", .{ .status = .not_found });
+
+                state.alloc.free(path);
+                return;
             };
-            const index = index_start+"</title>\n".len;
-            const append = (
-                \\    <script type="module" src="/editor.js"></script>
-                \\    <link rel="stylesheet" href="/editor.css">
-                \\
-            );
-            const response = try std.mem.join(state.alloc, "", &.{ file_contents[0..index], append, file_contents[index..] });
-            defer state.alloc.free(response);
-            try request.respond(response, .{
-                .extra_headers = &.{
-                    .{
-                        .name = "Content-Type",
-                        .value = mime,
-                    },
-                }
-            });
-        } else {
-            try request.respond(file_contents, .{
-                .extra_headers = &.{
-                    .{
-                        .name = "Content-Type",
-                        .value = mime,
-                    },
-                }
-            });
-        }
+        };
+
+        break :blk .{ file, path };
+    };
+    defer file.close();
+    defer state.alloc.free(path);
+
+    std.debug.print("sending {s}\n", .{path});
+    var reader = file.reader(&.{});
+    // no file should be >64MB
+    const file_contents = try reader.interface.allocRemaining(state.alloc, .limited(1024 * 1024 * 64));
+    defer state.alloc.free(file_contents);
+
+    const extension = std.fs.path.extension(path);
+    const mime = (
+        if (std.mem.eql(u8, extension, ".html"))
+            "text/html"
+        else if (std.mem.eql(u8, extension, ".css"))
+            "text/css"
+        else if (std.mem.eql(u8, extension, ".js"))
+            "text/javascript"
+        else if (std.mem.eql(u8, extension, ".svg"))
+            "image/svg+xml"
+        else if (std.mem.eql(u8, extension, ".jpg"))
+            "image/jpg"
+        else if (std.mem.eql(u8, extension, ".png"))
+            "image/png"
+        else if (std.mem.eql(u8, extension, ".webp"))
+            "image/webp"
+        else if (std.mem.eql(u8, extension, ".woff2"))
+            "font/woff2"
+        else if (std.mem.eql(u8, extension, ".pdf"))
+            "application/pdf"
+        else
+            return error.UnknownFileExtension
+    );
+
+    if (state.site_mode == .editor and std.mem.eql(u8, extension, ".html")) blk: {
+        const index_start = std.mem.indexOf(u8, file_contents, "</title>\n") orelse {
+            std.debug.print("unable to find end of title tag (cannot initialize editor)\n", .{});
+            break :blk;
+        };
+        const index = index_start+"</title>\n".len;
+        const append = (
+            \\    <script type="module" src="/editor.js"></script>
+            \\    <link rel="stylesheet" href="/editor.css">
+            \\
+        );
+        const response = try std.mem.join(state.alloc, "", &.{ file_contents[0..index], append, file_contents[index..] });
+        defer state.alloc.free(response);
+        try request.respond(response, .{
+            .extra_headers = &.{
+                .{
+                    .name = "Content-Type",
+                    .value = mime,
+                },
+            }
+        });
+    } else {
+        try request.respond(file_contents, .{
+            .extra_headers = &.{
+                .{
+                    .name = "Content-Type",
+                    .value = mime,
+                },
+            }
+        });
     }
 }
 
