@@ -142,7 +142,7 @@ fn serverThread(state: *State) void {
             .thread = thread,
         }) catch |e| std.debug.panic("{t}", .{e});
 
-        id += 1;
+        id +%= 1;
     }
 }
 fn serverThread2(client: std.net.Server.Connection, id: u16, state: *State) void {
