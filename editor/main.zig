@@ -186,15 +186,7 @@ fn serverThread3(client: std.net.Server.Connection, id: usize, state: *State) !v
         var request = try http_server.receiveHead();
 
         if (request.head.method == .POST and std.mem.eql(u8, request.head.target, "/post")) {
-            std.debug.print("recieved POST\n", .{});
-            var buffer: [1024]u8 = undefined;
-            const reader = request.server.reader.bodyReader(&buffer, request.head.transfer_encoding, request.head.content_length);
-            const body = try reader.allocRemaining(state.alloc, .limited(1024*1024));
-            defer state.alloc.free(body);
-
-            std.debug.print("body: {s}\n", .{body});
-            try request.respond("", .{ .status = .ok });
-
+            try handlePost(&request, state);
             continue;
         } else if (request.head.method != .GET) {
             std.debug.print("404: unexpected request method {t}\n", .{request.head.method});
@@ -204,6 +196,17 @@ fn serverThread3(client: std.net.Server.Connection, id: usize, state: *State) !v
 
         try handleGet(&request, state);
     }
+}
+
+fn handlePost(request: *std.http.Server.Request, state: *State) !void {
+    std.debug.print("recieved POST\n", .{});
+    var buffer: [1024]u8 = undefined;
+    const reader = request.server.reader.bodyReader(&buffer, .none, request.head.content_length);
+    const body = try reader.allocRemaining(state.alloc, .limited(1024*1024));
+    defer state.alloc.free(body);
+
+    std.debug.print("body: {s}\n", .{body});
+    try request.respond("", .{ .status = .ok });
 }
 
 fn handleGet(request: *std.http.Server.Request, state: *State) !void {
