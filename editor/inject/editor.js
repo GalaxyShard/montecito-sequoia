@@ -1,6 +1,6 @@
 /**
  *
- * @licstart  The following is the entire license notice for the 
+ * @licstart  The following is the entire license notice for the
  *  JavaScript code in this page
  *
  * Copyright (C) 2023-2024 Dominic Adragna
@@ -9,12 +9,12 @@
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
@@ -41,7 +41,7 @@ const SmallMark = Mark.create({
         HTMLAttributes: {},
       };
     },
-  
+
     parseHTML() {
       return [
         {
@@ -58,18 +58,18 @@ Heading.configure({
     levels: [1, 2, 3, 4, 5],
 })
 
-
 /**
- * 
- * @param {HTMLElement} element 
- * @param  {...string} tags 
- * @returns 
+ *
+ * @param {HTMLElement} element
+ * @param  {...string} tags
+ * @returns
  */
 function tagIs(element, ...tags) {
     return element !== null && tags.includes(element.tagName);
 }
+
 /**
- * 
+ *
  * @param {HTMLElement} element
  * @param {HTMLElement} child
  */
@@ -81,14 +81,12 @@ function insertAfter(element, child) {
     }
 }
 
-
 /**
  * @param {HTMLElement} element
  */
 function removeElement(element) {
 
 }
-
 
 /**
  * @param {HTMLElement} cancel
@@ -112,8 +110,6 @@ function cancelConfirmation(cancel, defaultText) {
     return true;
 }
 
-
-
 /**
  * @param {() => void} onCancel
  * @param {() => void} onSave
@@ -126,7 +122,7 @@ function createToolbar(onCancel, onSave) {
     cancel.classList.add("editor-cancel");
     cancel.textContent = "Cancel";
 
-    cancel.addEventListener("click", e => {
+    cancel.addEventListener("click", _ => {
         if (!cancelConfirmation(cancel, "Cancel")) {
             return;
         }
@@ -136,15 +132,13 @@ function createToolbar(onCancel, onSave) {
     let save = document.createElement("button");
     save.classList.add("editor-save");
     save.textContent = "Save";
-    save.addEventListener("click", e => {
+    save.addEventListener("click", _ => {
         onSave();
     });
 
     toolbar.append(cancel, save);
     return toolbar;
 }
-
-
 
 /**
  * @param {HTMLElement} element
@@ -170,8 +164,6 @@ function decodeAttributes(element, attributes) {
     }
 }
 
-
-
 /**
  * @param {HTMLElement} element
  */
@@ -181,16 +173,16 @@ function createTextEditor(element) {
     let container = document.createElement("div");
     container.classList.add("editor-container");
 
-
     function onCancel() {
         let element = document.createElement(container.dataset.tag);
         decodeAttributes(element, container.dataset.attributes);
-        
+
         element.innerHTML = container.dataset.original;
-        
+
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
     }
+
     function onSave() {
         // convert html into a document fragment
         const html = editorInstance.getHTML();
@@ -210,7 +202,7 @@ function createTextEditor(element) {
         if (frag.children.length == 0) {
             return;
         }
-        
+
         decodeAttributes(frag.firstElementChild, container.dataset.attributes);
         for (let e of frag.children) {
             setupElementEditing(e);
@@ -218,12 +210,11 @@ function createTextEditor(element) {
         container.parentElement.replaceChild(frag, container);
 
     }
+
     let toolbar = createToolbar(onCancel, onSave);
 
     let editorElement = document.createElement("div");
     editorElement.classList.add("editor");
-
-
 
     container.dataset.original = element.innerHTML;
     container.dataset.attributes = encodeAttributes(element);
@@ -243,21 +234,19 @@ function createTextEditor(element) {
     editorInstance.commands.focus("end");
 }
 
-
-
 /**
  * @param {HTMLImageElement | HTMLElement} element
  */
 function createImageEditor(element) {
     removeHoverToolbar(element);
-    
+
     let container = document.createElement("div");
     container.classList.add("editor-container");
-    
+
     let inputLabel = document.createElement("label");
     let input = document.createElement("input");
     input.type = "text";
-    
+
     // getAttribute instead of .src so that the domain name isn't inserted automatically
     let isFittedImage = element.getAttribute("src") == null;
 
@@ -297,26 +286,24 @@ function createImageEditor(element) {
     container.append(inputLabel, toolbar);
 
     element.parentElement.replaceChild(container, element);
-    
+
     input.focus();
 }
-
-
 
 /**
  * @param {HTMLImageElement | HTMLElement} element
  */
 function createLinkEditor(element) {
     removeHoverToolbar(element);
-    
+
     let container = document.createElement("div");
     container.classList.add("editor-container");
-    
+
     let textLabel = document.createElement("label");
     let text = document.createElement("input");
     text.type = "text";
     text.value = element.textContent;
-    
+
     let linkLabel = document.createElement("label");
     let link = document.createElement("input");
     link.type = "text";
@@ -328,21 +315,21 @@ function createLinkEditor(element) {
         decodeAttributes(element, container.dataset.attributes);
 
         element.textContent = container.dataset.original;
-        
+
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
-        
+
     }
     function onSave() {
         let element = document.createElement("a");
         decodeAttributes(element, container.dataset.attributes);
-        
+
         element.textContent = text.value;
         element.href = link.value;
-        
+
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
-        
+
     }
     let toolbar = createToolbar(onCancel, onSave);
 
@@ -394,7 +381,7 @@ function createAddElementDropdown(element) {
     insertWarning.textContent = "Warning Alert";
     insertWarning.addEventListener("click", _ => {
         removeHoverToolbar(element);
-        
+
         let e = document.createElement("div");
         e.classList.add("alert", "alert-warning", "text-center", "px-5");
         e.role = "alert";
@@ -408,7 +395,7 @@ function createAddElementDropdown(element) {
     insertImage.textContent = "Image";
     insertImage.addEventListener("click", _ => {
         removeHoverToolbar(element);
-        
+
         let e = document.createElement("img-fitted");
         e.role = "img";
         e.setAttribute("style", `--image:url('/assets/logos/montecito.svg');
@@ -432,7 +419,7 @@ function createAddElementDropdown(element) {
     insertLink.textContent = "Link";
     insertLink.addEventListener("click", _ => {
         removeHoverToolbar(element);
-        
+
         let e = document.createElement("a");
         e.textContent = "Link";
         e.href = "/";
@@ -451,7 +438,7 @@ function createAddElementDropdown(element) {
     insertParagraph.textContent = "Paragraph";
     insertParagraph.addEventListener("click", _ => {
         removeHoverToolbar(element);
-        
+
         let e = document.createElement("p");
         e.textContent = "Text";
         setupElementEditing(e);
@@ -468,7 +455,7 @@ function createAddElementDropdown(element) {
     insertHr.textContent = "Horizontal Bar";
     insertHr.addEventListener("click", _ => {
         removeHoverToolbar(element);
-        
+
         let e = document.createElement("hr");
         setupElementEditing(e);
         element.insertAdjacentElement("afterend", e);
@@ -537,10 +524,10 @@ function createHoverToolbar(element) {
 
     downButton.addEventListener("click", _ => {
         let nextElement = element.nextElementSibling.nextElementSibling; // skip the toolbar
-        
+
         if (nextElement) {
             removeHoverToolbar(element);
-            
+
             if (tagIs(nextElement, "DIV", "MAIN", "ASIDE", "SECTION") && !nextElement.classList.contains("row")) {
                 nextElement.insertBefore(element, nextElement.firstElementChild);
             } else {
@@ -594,7 +581,7 @@ function createHoverToolbar(element) {
         createAddElementDropdown(element);
     });
     toolbar.append(addButton);
-    
+
 
     container.addEventListener("mouseenter", e => {
         e.stopPropagation();
@@ -606,7 +593,7 @@ function createHoverToolbar(element) {
 
     container.append(toolbar);
     element.insertAdjacentElement("afterend", container);
-    
+
     if (currentToolbarElement !== null) {
         removeHoverToolbar(currentToolbarElement);
     }
@@ -614,7 +601,7 @@ function createHoverToolbar(element) {
 }
 
 /**
- * @param {HTMLElement} element 
+ * @param {HTMLElement} element
  */
 function setupElementEditing(element) {
     if (element.dataset.uneditable !== undefined) {
@@ -632,6 +619,7 @@ function setupElementEditing(element) {
         e.stopPropagation();
     });
 }
+
 for (let e of document.getElementsByTagName("p")) {
     setupElementEditing(e);
 }
