@@ -7,8 +7,9 @@ const clipboard = @import("clipboard");
 const html = @embedFile("index.html");
 
 const State = struct {
-    // main thread deinitializes, server thread appends
-    clients: std.ArrayList(struct { stream: std.net.Stream, thread: std.Thread }) = .empty,
+    // main thread deinitializes, server thread appends, server-client threads remove
+    mutex: std.Thread.Mutex = .{},
+    clients: std.ArrayList(struct { stream: std.net.Stream, thread: std.Thread, id: usize }) = .empty,
 
     // used by main thread only
     thread: ?std.Thread,
@@ -104,19 +105,23 @@ fn serverThread(state: *State) void {
 
     defer {
         std.debug.print("server shutdown\n", .{});
+        state.mutex.lock();
         for (state.clients.items) |client| {
             if (std.posix.shutdown(client.stream.handle, .both)) {
                 client.thread.join();
+                client.stream.close();
             } else |e| {
                 std.debug.print("error shutting down client: {t}\n", .{e});
                 client.thread.detach();
             }
         }
         state.clients.clearRetainingCapacity();
+        state.mutex.unlock();
+
         state.tcp_server.deinit();
     }
 
-    var id: u16 = 0;
+    var id: usize = 0;
     while (true) {
         if (state.shutdown.load(.monotonic)) {
             return;
@@ -137,22 +142,39 @@ fn serverThread(state: *State) void {
 
         const thread = std.Thread.spawn(.{}, serverThread2, .{client, id, state}) catch |e| std.debug.panic("{t}", .{e});
 
+        state.mutex.lock();
         state.clients.append(state.alloc, .{
             .stream = client.stream,
             .thread = thread,
-        }) catch |e| std.debug.panic("{t}", .{e});
+            .id = id,
+        }) catch |e| {
+            state.mutex.unlock();
+            std.debug.panic("{t}", .{e});
+        };
+        state.mutex.unlock();
 
-        id +%= 1;
+        id += 1;
     }
 }
-fn serverThread2(client: std.net.Server.Connection, id: u16, state: *State) void {
+fn serverThread2(client: std.net.Server.Connection, id: usize, state: *State) void {
     serverThread3(client, id, state) catch |e| std.debug.print("server error: {t}\n client id: {}\n", .{e, id});
 }
-fn serverThread3(client: std.net.Server.Connection, id: u16, state: *State) !void {
+fn serverThread3(client: std.net.Server.Connection, id: usize, state: *State) !void {
     defer {
         std.debug.print("client disconnect {}\n", .{id});
+
+        if (!state.shutdown.load(.monotonic)) {
+            state.mutex.lock();
+            const index: usize = blk: for (0..state.clients.items.len) |i| {
+                if (state.clients.items[i].id == id) {
+                    break :blk i;
+                }
+            } else unreachable;
+            _ = state.clients.swapRemove(index);
+            client.stream.close();
+            state.mutex.unlock();
+        }
     }
-    defer client.stream.close();
 
     var http_in_buffer: [1024 * 8]u8 = undefined;
     var http_out_buffer: [1024 * 32]u8 = undefined;
