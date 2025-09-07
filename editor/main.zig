@@ -84,7 +84,7 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
         std.debug.panic("unexpected site type '{s}'", .{site_type});
     };
 
-    const address = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 0);
+    const address = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 8192);
     state.tcp_server = address.listen(.{ .reuse_address = true, .force_nonblocking = true }) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("unrecoverable error: {t}\n", .{e2});
