@@ -69,19 +69,6 @@ function tagIs(element, ...tags) {
 }
 
 /**
- *
- * @param {HTMLElement} element
- * @param {HTMLElement} child
- */
-function insertAfter(element, child) {
-    if (child.nextElementSibling) {
-        child.parentElement.insertBefore(element, child.nextElementSibling);
-    } else {
-        child.parentElement.append(element);
-    }
-}
-
-/**
  * @param {HTMLElement} cancel
  * @param {string} defaultText
  */
@@ -603,7 +590,7 @@ function createHoverToolbar(element) {
             if (tagIs(nextElement, "DIV", "MAIN", "ASIDE", "SECTION") && !nextElement.classList.contains("row")) {
                 nextElement.insertBefore(element, nextElement.firstElementChild);
             } else {
-                insertAfter(element, nextElement);
+                nextElement.insertAdjacentElement("afterend", element);
             }
         } else {
             if (!tagIs(element.parentElement, "BODY")
@@ -612,7 +599,7 @@ function createHoverToolbar(element) {
             {
                 // allow moving images up to the body, and anything else up one level but not to the body or out of a column
                 removeHoverToolbar(element);
-                insertAfter(element, element.parentElement);
+                element.parentElement.insertAdjacentElement("afterend", element);
             }
         }
     });
