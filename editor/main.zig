@@ -4,7 +4,7 @@ const Webview = @import("Webview");
 
 const clipboard = @import("clipboard");
 
-const html = @embedFile("index.html");
+const app_html = @embedFile("index.html");
 
 const State = struct {
     // main thread deinitializes, server thread appends, server-client threads remove
@@ -38,7 +38,7 @@ pub fn main() !void {
 
     try webview.setTitle("Montecito Site Editor");
     try webview.setSize(1024, 720, .none);
-    try webview.setHtml(html);
+    try webview.setHtml(app_html);
 
     const self_dir = try std.fs.selfExeDirPathAlloc(alloc);
     defer alloc.free(self_dir);
@@ -209,6 +209,41 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     try request.respond("", .{ .status = .ok });
 }
 
+fn findHtml(alloc: std.mem.Allocator, mode: std.fs.File.OpenMode, site_dir: []const u8, relative: []const u8) error{ UnsafePath, NotFound, OutOfMemory }!struct{ std.fs.File, []const u8 } {
+    if (hasDirectoryTraversal(relative)) {
+        return error.UnsafePath;
+    }
+
+    const suffix = (
+        if (relative.len == 0 or relative[relative.len-1] == '/')
+            "index.html"
+        else if (std.fs.path.extension(relative).len == 0)
+            ".html"
+        else
+            ""
+    );
+    var path = try std.mem.join(alloc, "", &.{ site_dir, "/", relative, suffix });
+    errdefer alloc.free(path);
+
+    const file = std.fs.cwd().openFile(path, .{ .mode = mode }) catch |e| blk1: {
+        if (relative.len == 0 or relative[relative.len-1] == '/') {
+            std.debug.print("404 not found ({t}) {s}\n", .{e, path});
+
+            return error.NotFound;
+        }
+        alloc.free(path);
+        path = try std.mem.join(alloc, "", &.{ site_dir, "/", relative, "/index.html" });
+
+        break :blk1 std.fs.cwd().openFile(path, .{ .mode = mode }) catch |e1| {
+            std.debug.print("404 not found ({t}, {t}) {s}\n", .{e, e1, path});
+
+            return error.NotFound;
+        };
+    };
+
+    return .{ file, path };
+}
+
 fn handleGet(request: *std.http.Server.Request, state: *State) !void {
 
     if (request.head.target.len == 0 or request.head.target[0] != '/') {
@@ -219,46 +254,20 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
     }
 
     const page = request.head.target[1..]; // ignore leading `/`
-    if (hasDirectoryTraversal(page)) {
-        std.debug.print("not sending; path failed hasDirectoryTraversal: {s}\n", .{page});
-        try request.respond("404 not found", .{ .status = .not_found });
+    const file, const path = findHtml(state.alloc, .read_only, state.site_dir, page) catch |e| switch (e) {
+        error.UnsafePath => {
+            std.debug.print("not sending; path failed hasDirectoryTraversal: {s}\n", .{page});
+            try request.respond("404 not found", .{ .status = .not_found });
 
-        return;
-    }
-
-    const file, const path = blk: {
-        const suffix = (
-            if (page.len == 0 or page[page.len-1] == '/')
-                "index.html"
-            else if (std.fs.path.extension(page).len == 0)
-                ".html"
-            else
-                ""
-        );
-        var path = try std.mem.join(state.alloc, "", &.{ state.site_dir, "/", page, suffix });
-        errdefer state.alloc.free(path);
-
-        const file = std.fs.cwd().openFile(path, .{}) catch |e| blk1: {
-            if (page.len == 0 or page[page.len-1] == '/') {
-                std.debug.print("404 not found ({t}) {s}\n", .{e, path});
-                try request.respond("404 not found", .{ .status = .not_found });
-
-                state.alloc.free(path);
-                return;
-            }
-            state.alloc.free(path);
-            path = try std.mem.join(state.alloc, "", &.{ state.site_dir, "/", page, "/index.html" });
-
-            break :blk1 std.fs.cwd().openFile(path, .{}) catch |e1| {
-                std.debug.print("404 not found ({t}, {t}) {s}\n", .{e, e1, path});
-                try request.respond("404 not found", .{ .status = .not_found });
-
-                state.alloc.free(path);
-                return;
-            };
-        };
-
-        break :blk .{ file, path };
+            return;
+        },
+        error.NotFound => {
+            try request.respond("404 not found", .{ .status = .not_found });
+            return;
+        },
+        error.OutOfMemory => {
+            return e;
+        }
     };
     defer file.close();
     defer state.alloc.free(path);
