@@ -249,6 +249,8 @@ function createImageEditor(element) {
 
     let inputLabel = document.createElement("label");
     let input = document.createElement("input");
+    inputLabel.classList.add("editor-element");
+    input.classList.add("editor-element");
     input.type = "text";
 
     // getAttribute instead of .src so that the domain name isn't inserted automatically
@@ -312,11 +314,15 @@ function createLinkEditor(element) {
 
     let textLabel = document.createElement("label");
     let text = document.createElement("input");
+    textLabel.classList.add("editor-element");
+    text.classList.add("editor-element");
     text.type = "text";
     text.value = element.textContent;
 
     let linkLabel = document.createElement("label");
     let link = document.createElement("input");
+    linkLabel.classList.add("editor-element");
+    link.classList.add("editor-element");
     link.type = "text";
     // getAttribute instead of .href so that the domain name isn't inserted automatically
     link.value = element.getAttribute("href");
@@ -377,6 +383,7 @@ function createAddElementDropdown(element) {
 
 
     let insertAlert = document.createElement("button");
+    insertAlert.classList.add("editor-element");
     insertAlert.textContent = "Info Alert";
     insertAlert.addEventListener("click", async _ => {
         let e = document.createElement("div");
@@ -398,6 +405,7 @@ function createAddElementDropdown(element) {
 
 
     let insertWarning = document.createElement("button");
+    insertWarning.classList.add("editor-element");
     insertWarning.textContent = "Warning Alert";
     insertWarning.addEventListener("click", async _ => {
         let e = document.createElement("div");
@@ -418,6 +426,7 @@ function createAddElementDropdown(element) {
 
 
     let insertImage = document.createElement("button");
+    insertImage.classList.add("editor-element");
     insertImage.textContent = "Image";
     insertImage.addEventListener("click", async _ => {
         let e = document.createElement("img-fitted");
@@ -444,6 +453,7 @@ function createAddElementDropdown(element) {
 
 
     let insertLink = document.createElement("button");
+    insertLink.classList.add("editor-element");
     insertLink.textContent = "Link";
     insertLink.addEventListener("click", async _ => {
         let e = document.createElement("a");
@@ -469,6 +479,7 @@ function createAddElementDropdown(element) {
 
 
     let insertParagraph = document.createElement("button");
+    insertParagraph.classList.add("editor-element");
     insertParagraph.textContent = "Paragraph";
     insertParagraph.addEventListener("click", async _ => {
         let e = document.createElement("p");
@@ -492,6 +503,7 @@ function createAddElementDropdown(element) {
 
 
     let insertHr = document.createElement("button");
+    insertHr.classList.add("editor-element");
     insertHr.textContent = "Horizontal Bar";
     insertHr.addEventListener("click", async _ => {
         let e = document.createElement("hr");
@@ -558,6 +570,7 @@ function createHoverToolbar(element) {
 
     if (!tagIs(element, "HR") && !element.classList.contains("alert")) {
         let editButton = document.createElement("button");
+        editButton.classList.add("editor-element");
         editButton.textContent = "Edit";
         editButton.addEventListener("click", _ => {
             if (tagIs(element, "IMG", "IMG-FITTED")) {
@@ -642,6 +655,7 @@ function createHoverToolbar(element) {
 
 
     let addButton = document.createElement("button");
+    addButton.classList.add("editor-element");
     addButton.textContent = "Add";
     addButton.addEventListener("click", _ => {
         createAddElementDropdown(element);
@@ -672,16 +686,34 @@ function createHoverToolbar(element) {
  */
 function serializePlacementLocation(element) {
     let elements = document.getElementsByTagName(element.tagName);
-    let i;
-    for (i = 0; i < elements.length; ++i) {
+    let filesystem_index = 0;
+    let found = false;
+    for (let i = 0; i < elements.length; ++i) {
         if (elements[i] == element) {
+            found = true;
             break;
         }
+
+        // ignore editor-generated elements
+        let count = true;
+        if (element.classList.contains("editor")) {
+            continue;
+        }
+        for (let item of element.classList.values()) {
+            if (item.startsWith("editor-")) {
+                count = false;
+                break;
+            }
+        }
+
+        if (count) {
+            filesystem_index += 1;
+        }
     }
-    if (i == elements.length) {
+    if (!found) {
         console.error("fatal: cannot find element in DOM to serialize: " + element.tagName.toLowerCase(), element);
     }
-    return location.href.replace(location.origin, "") + "\n" + element.tagName.toLowerCase() + "\n" + (element.classList.contains("alert") ? "alert" : "not-alert") + "\n" + i + "\n";
+    return location.href.replace(location.origin, "") + "\n" + element.tagName.toLowerCase() + "\n" + (element.classList.contains("alert") ? "alert" : "not-alert") + "\n" + filesystem_index + "\n";
 }
 
 /**
