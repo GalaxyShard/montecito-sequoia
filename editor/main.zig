@@ -270,15 +270,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
 
         try writer.interface.writeByte('\n');
 
-        var iter = std.mem.splitScalar(u8, html, '\n');
-        while (iter.next()) |line| {
-            if (line.len == 0) {
-                continue;
-            }
-            try writer.interface.splatByteAll(' ', if (is_alert) indentation + 4 else indentation);
-            try writer.interface.writeAll(line);
-            try writer.interface.writeByte('\n');
-        }
+        try writeIndented(&writer.interface, html, (if (is_alert) indentation + 4 else indentation));
 
         try writer.interface.splatByteAll(' ', indentation);
 
@@ -324,15 +316,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index]));
         try writer.interface.writeByte('\n');
 
-        var iter = std.mem.splitScalar(u8, html, '\n');
-        while (iter.next()) |line| {
-            if (line.len == 0) {
-                continue;
-            }
-            try writer.interface.splatByteAll(' ', indentation);
-            try writer.interface.writeAll(line);
-            try writer.interface.writeByte('\n');
-        }
+        try writeIndented(&writer.interface, html, indentation);
 
         try writer.interface.splatByteAll(' ', indentation);
         try writer.interface.writeAll(trimTrailingSpace(file_contents[closing_index..]));
@@ -350,6 +334,18 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     try writer.interface.flush();
 
     try request.respond("", .{ .status = .ok });
+}
+
+fn writeIndented(writer: *std.Io.Writer, text: []const u8, spaces: usize) !void {
+    var iter = std.mem.splitScalar(u8, text, '\n');
+    while (iter.next()) |line| {
+        if (line.len == 0) {
+            continue;
+        }
+        try writer.splatByteAll(' ', spaces);
+        try writer.writeAll(line);
+        try writer.writeByte('\n');
+    }
 }
 
 /// leading empty line is at the end of the contents
