@@ -68,8 +68,7 @@ pub fn main() !void {
     try webview.run();
 }
 
-fn copyToClipboard(context: Webview.BindContext, text: []const u8) void {
-    _ = context;
+fn copyToClipboard(_: Webview.BindContext, text: []const u8) void {
     clipboard.write(text) catch |e| std.debug.print("error copying to clipboard: {t}\n", .{e});
 }
 
@@ -264,17 +263,19 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         if (is_alert) {
             // add inside the alert; before the closing tag
             const closing_tag_length = element_tag.len + 3;
-            try writer.interface.writeAll(file_contents[0..closing_index-closing_tag_length]);
+            try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..closing_index-closing_tag_length]));
         } else {
             try writer.interface.writeAll(file_contents[0..closing_index]);
         }
 
-        var iter = std.mem.splitScalar(u8, html, '\n');
         try writer.interface.writeByte('\n');
-        try writer.interface.splatByteAll(' ', indentation);
-        try writer.interface.writeAll(iter.first());
+
+        var iter = std.mem.splitScalar(u8, html, '\n');
         while (iter.next()) |line| {
-            try writer.interface.splatByteAll(' ', indentation);
+            if (line.len == 0) {
+                continue;
+            }
+            try writer.interface.splatByteAll(' ', if (is_alert) indentation + 4 else indentation);
             try writer.interface.writeAll(line);
             try writer.interface.writeByte('\n');
         }
@@ -285,17 +286,63 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
             const closing_tag_length = element_tag.len + 3;
             try writer.interface.writeAll(file_contents[closing_index-closing_tag_length..]);
         } else {
-            try writer.interface.writeAll(file_contents[closing_index..]);
+            try writer.interface.writeAll(trimTrailingSpace(file_contents[closing_index..]));
         }
-
     } else if (std.mem.eql(u8, command, "replace-element")) {
         const html_start = body_iter.index orelse return error.InvalidPost;
         // note: has a trailing newline
         const html = body_iter.buffer[html_start..body_iter.buffer.len];
-        _ = html;
 
+        const start_index = findNthTagIndex(file_contents, element_tag, element_index) orelse return error.InvalidPost;
+        const closing_index = findClosingTag(file_contents, element_tag, start_index) orelse return error.MalformedHtml;
+        const indentation = leadingSpaces(file_contents, start_index);
+
+        // 2 cases
+        //
+        // old0 <p>old1</p> old2
+        // ->
+        // old0
+        // <p>
+        //     new1
+        // </p>
+        // old2
+        //
+        // ---
+        //
+        // old0
+        // <p>
+        //     old1
+        // </p>
+        // old2
+        // ->
+        // old0
+        // <p>
+        //     new1
+        // </p>
+        // old2
+
+        try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index]));
+        try writer.interface.writeByte('\n');
+
+        var iter = std.mem.splitScalar(u8, html, '\n');
+        while (iter.next()) |line| {
+            if (line.len == 0) {
+                continue;
+            }
+            try writer.interface.splatByteAll(' ', indentation);
+            try writer.interface.writeAll(line);
+            try writer.interface.writeByte('\n');
+        }
+
+        try writer.interface.splatByteAll(' ', indentation);
+        try writer.interface.writeAll(trimTrailingSpace(file_contents[closing_index..]));
     } else if (std.mem.eql(u8, command, "remove-element")) {
 
+        const start_index = findNthTagIndex(file_contents, element_tag, element_index) orelse return error.InvalidPost;
+        const closing_index = findClosingTag(file_contents, element_tag, start_index) orelse return error.MalformedHtml;
+
+        try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index]));
+        try writer.interface.writeAll(trimTrailingNewline(file_contents[closing_index..]));
     } else {
         return error.InvalidPost;
     }
@@ -303,6 +350,48 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     try writer.interface.flush();
 
     try request.respond("", .{ .status = .ok });
+}
+
+/// leading empty line is at the end of the contents
+///
+/// removes leading spaces (at the end of the contents), a new line, and leading spaces on the previous line
+fn trimLeadingEmptyLine(contents: []const u8) []const u8 {
+    const start = std.mem.trimEnd(u8, contents, " ");
+    if (start[start.len-1] == '\n') {
+        // trim trailing whitespace
+        return std.mem.trimEnd(u8, start[0..start.len - 1], " ");
+    } else {
+        return start[0..start.len];
+    }
+}
+/// removes trailing spaces (at the start of the contents) and a newline
+fn trimTrailingNewline(contents: []const u8) []const u8 {
+    const start = std.mem.trimStart(u8, contents, " ");
+    if (start[0] == '\n') {
+        return start[1..];
+    } else {
+        return contents;
+    }
+}
+/// trailing spaces are at the start of the contents
+fn trimTrailingSpace(contents: []const u8) []const u8 {
+
+    // cases
+    //
+    // trailing space \n
+    //
+    // line then space\n
+    // data
+    //
+    // trailing space and line \n
+    // data
+
+    const start = std.mem.trimStart(u8, contents, " ");
+    if (start[0] == '\n') {
+        return std.mem.trimStart(u8, start[1..], " ");
+    } else {
+        return std.mem.trimStart(u8, start[0..], " ");
+    }
 }
 
 fn findNthTagIndex(contents: []const u8, tag: []const u8, n: usize) ?usize {
