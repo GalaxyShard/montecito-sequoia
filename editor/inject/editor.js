@@ -181,7 +181,12 @@ function createTextEditor(element) {
 
     async function onSave() {
         // convert html into a document fragment
-        const html = editorInstance.getHTML().replace(/<p><\/p>/g, "").replace(/  +/g, "");
+        const html = editorInstance.getHTML()
+            .replace(/<p><\/p>/g, "")
+            .replace(/  +/g, "")
+            .replace(/\n/g, "")
+            .replace(/<p>/g, "<p>\n    ")
+            .replace(/<\/p>/g, "\n</p>\n");
 
         let frag = document.createDocumentFragment();
         let temp = document.createElement('div');
@@ -276,7 +281,7 @@ function createImageEditor(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "replace-element\n" + serializedLocation + element.outerHTML + "\n",
+            body: "replace-element\n" + serializedLocation + serializeElementHtml(element),
         });
 
         setupElementEditing(element);
@@ -335,7 +340,7 @@ function createLinkEditor(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "replace-element\n" + serializedLocation + element.outerHTML + "\n",
+            body: "replace-element\n" + serializedLocation + serializeElementHtml(element),
         });
 
         setupElementEditing(element);
