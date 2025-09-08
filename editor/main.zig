@@ -186,7 +186,9 @@ fn serverThread3(client: std.net.Server.Connection, id: usize, state: *State) !v
         var request = try http_server.receiveHead();
 
         if (request.head.method == .POST and std.mem.eql(u8, request.head.target, "/post")) {
-            try handlePost(&request, state);
+            handlePost(&request, state) catch {
+                try request.respond("", .{ .status = .bad_request });
+            };
             continue;
         } else if (request.head.method != .GET) {
             std.debug.print("404: unexpected request method {t}\n", .{request.head.method});
@@ -201,11 +203,105 @@ fn serverThread3(client: std.net.Server.Connection, id: usize, state: *State) !v
 fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     std.debug.print("recieved POST\n", .{});
     var buffer: [1024]u8 = undefined;
-    const reader = request.server.reader.bodyReader(&buffer, .none, request.head.content_length);
-    const body = try reader.allocRemaining(state.alloc, .limited(1024*1024));
+    const body_reader = request.server.reader.bodyReader(&buffer, .none, request.head.content_length);
+    const body = try body_reader.allocRemaining(state.alloc, .limited(1024*1024));
     defer state.alloc.free(body);
 
-    std.debug.print("body: {s}\n", .{body});
+    std.debug.print("{s}\n", .{body});
+
+    // replace-element: location and html
+    // add-element: location and html
+    // remove-element: location ONLY
+    // *move-element-down: later
+    // *move-element-up: later
+
+    var body_iter = std.mem.splitScalar(u8, body, '\n');
+    const command = body_iter.next() orelse return error.InvalidPost;
+    const get_path = body_iter.next() orelse return error.InvalidPost;
+    const element_tag = body_iter.next() orelse return error.InvalidPost;
+    const is_alert_string = body_iter.next() orelse return error.InvalidPost;
+    const element_index_string = body_iter.next() orelse return error.InvalidPost;
+
+    const is_alert = if (std.mem.eql(u8, is_alert_string, "alert")) blk: {
+        break :blk true;
+    } else if (std.mem.eql(u8, is_alert_string, "not-alert")) blk: {
+        break :blk false;
+    } else {
+        return error.InvalidPost;
+    };
+
+    const element_index = std.fmt.parseInt(usize, element_index_string, 10) catch return error.InvalidPost;
+
+    const file_in, const path = findHtml(state.alloc, .read_write, state.site_dir, get_path[1..]) catch |e| switch (e) {
+        error.NotFound => return error.InvalidPost,
+        error.UnsafePath => return error.InvalidPost,
+        error.OutOfMemory => return e,
+    };
+    defer state.alloc.free(path);
+
+    const file_contents = blk: {
+        defer file_in.close();
+        var reader = file_in.reader(&.{});
+        break :blk try reader.interface.allocRemaining(state.alloc, .limited(1024 * 1024 * 64));
+    };
+    defer state.alloc.free(file_contents);
+
+    const file = try std.fs.cwd().createFile(path, .{});
+    defer file.close();
+
+    // body_reader is no longer being used; buffer is safe to overwrite
+    var writer = file.writer(&buffer);
+
+    if (std.mem.eql(u8, command, "add-element")) {
+        const html_start = body_iter.index orelse return error.InvalidPost;
+        // note: has a trailing newline
+        const html = body_iter.buffer[html_start..body_iter.buffer.len];
+
+        const start_index = findNthTagIndex(file_contents, element_tag, element_index) orelse return error.InvalidPost;
+        const closing_index = findClosingTag(file_contents, element_tag, start_index) orelse return error.MalformedHtml;
+        const indentation = leadingSpaces(file_contents, start_index);
+
+        if (is_alert) {
+            // add inside the alert; before the closing tag
+            const closing_tag_length = element_tag.len + 3;
+            try writer.interface.writeAll(file_contents[0..closing_index-closing_tag_length]);
+        } else {
+            try writer.interface.writeAll(file_contents[0..closing_index]);
+        }
+
+        var iter = std.mem.splitScalar(u8, html, '\n');
+        try writer.interface.writeByte('\n');
+        try writer.interface.splatByteAll(' ', indentation);
+        try writer.interface.writeAll(iter.first());
+        while (iter.next()) |line| {
+            try writer.interface.splatByteAll(' ', indentation);
+            try writer.interface.writeAll(line);
+            try writer.interface.writeByte('\n');
+        }
+
+        try writer.interface.splatByteAll(' ', indentation);
+
+        if (is_alert) {
+            const closing_tag_length = element_tag.len + 3;
+            try writer.interface.writeAll(file_contents[closing_index-closing_tag_length..]);
+        } else {
+            try writer.interface.writeAll(file_contents[closing_index..]);
+        }
+
+    } else if (std.mem.eql(u8, command, "replace-element")) {
+        const html_start = body_iter.index orelse return error.InvalidPost;
+        // note: has a trailing newline
+        const html = body_iter.buffer[html_start..body_iter.buffer.len];
+        _ = html;
+
+    } else if (std.mem.eql(u8, command, "remove-element")) {
+
+    } else {
+        return error.InvalidPost;
+    }
+
+    try writer.interface.flush();
+
     try request.respond("", .{ .status = .ok });
 }
 
