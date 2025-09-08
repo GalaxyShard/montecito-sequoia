@@ -82,13 +82,6 @@ function insertAfter(element, child) {
 }
 
 /**
- * @param {HTMLElement} element
- */
-function removeElement(element) {
-
-}
-
-/**
  * @param {HTMLElement} cancel
  * @param {string} defaultText
  */
@@ -112,7 +105,7 @@ function cancelConfirmation(cancel, defaultText) {
 
 /**
  * @param {() => void} onCancel
- * @param {() => void} onSave
+ * @param {async () => void} onSave
  */
 function createToolbar(onCancel, onSave) {
     let toolbar = document.createElement("div");
@@ -132,8 +125,8 @@ function createToolbar(onCancel, onSave) {
     let save = document.createElement("button");
     save.classList.add("editor-save");
     save.textContent = "Save";
-    save.addEventListener("click", _ => {
-        onSave();
+    save.addEventListener("click", async _ => {
+        await onSave();
     });
 
     toolbar.append(cancel, save);
@@ -170,8 +163,11 @@ function decodeAttributes(element, attributes) {
 function createTextEditor(element) {
     removeHoverToolbar(element);
 
+    let serializedLocation = serializePlacementLocation(element);
+
     let container = document.createElement("div");
     container.classList.add("editor-container");
+
 
     function onCancel() {
         let element = document.createElement(container.dataset.tag);
@@ -183,19 +179,15 @@ function createTextEditor(element) {
         container.parentElement.replaceChild(element, container);
     }
 
-    function onSave() {
+    async function onSave() {
         // convert html into a document fragment
-        const html = editorInstance.getHTML();
+        const html = editorInstance.getHTML().replace(/<p><\/p>/g, "").replace(/  +/g, "");
 
         let frag = document.createDocumentFragment();
         let temp = document.createElement('div');
         temp.innerHTML = html;
 
         while (temp.firstChild) {
-            if (temp.firstChild.textContent.length == 0) { // ignore empty paragraphs
-                temp.firstChild.remove();
-                continue;
-            }
             frag.appendChild(temp.firstChild);
         }
         temp.remove();
@@ -204,11 +196,16 @@ function createTextEditor(element) {
         }
 
         decodeAttributes(frag.firstElementChild, container.dataset.attributes);
+
+        await fetch("/post", {
+            method: "POST",
+            body: "replace-element\n" + serializedLocation + html + "\n",
+        });
+
         for (let e of frag.children) {
             setupElementEditing(e);
         }
         container.parentElement.replaceChild(frag, container);
-
     }
 
     let toolbar = createToolbar(onCancel, onSave);
@@ -240,6 +237,8 @@ function createTextEditor(element) {
 function createImageEditor(element) {
     removeHoverToolbar(element);
 
+    let serializedLocation = serializePlacementLocation(element);
+
     let container = document.createElement("div");
     container.classList.add("editor-container");
 
@@ -265,7 +264,7 @@ function createImageEditor(element) {
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
     }
-    function onSave() {
+    async function onSave() {
         let element = document.createElement(container.dataset.tag);
 
         decodeAttributes(element, container.dataset.attributes);
@@ -274,6 +273,11 @@ function createImageEditor(element) {
         } else {
             element.src = input.value;
         }
+
+        await fetch("/post", {
+            method: "POST",
+            body: "replace-element\n" + serializedLocation + element.outerHTML + "\n",
+        });
 
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
@@ -295,6 +299,8 @@ function createImageEditor(element) {
  */
 function createLinkEditor(element) {
     removeHoverToolbar(element);
+
+    let serializedLocation = serializePlacementLocation(element);
 
     let container = document.createElement("div");
     container.classList.add("editor-container");
@@ -320,12 +326,17 @@ function createLinkEditor(element) {
         container.parentElement.replaceChild(element, container);
 
     }
-    function onSave() {
+    async function onSave() {
         let element = document.createElement("a");
         decodeAttributes(element, container.dataset.attributes);
 
         element.textContent = text.value;
         element.href = link.value;
+
+        await fetch("/post", {
+            method: "POST",
+            body: "replace-element\n" + serializedLocation + element.outerHTML + "\n",
+        });
 
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
@@ -525,10 +536,16 @@ function createHoverToolbar(element) {
     let removeButton = document.createElement("button");
     removeButton.textContent = "Remove";
     removeButton.classList.add("editor-cancel");
-    removeButton.addEventListener("click", _ => {
+    removeButton.addEventListener("click", async _ => {
         if (!cancelConfirmation(removeButton, "Remove")) {
             return;
         }
+
+        await fetch("/post", {
+            method: "POST",
+            body: "remove-element\n" + serializePlacementLocation(element),
+        });
+
         removeHoverToolbar(element);
         element.remove();
     });
@@ -552,8 +569,14 @@ function createHoverToolbar(element) {
     downButton.textContent = "";
     downButton.classList.add("editor-down-button");
 
-    downButton.addEventListener("click", _ => {
+    downButton.addEventListener("click", async _ => {
         let nextElement = element.nextElementSibling.nextElementSibling; // skip the toolbar
+
+        // TODO: needs more info here
+        await fetch("/post", {
+            method: "POST",
+            body: "move-element-down\n" + serializePlacementLocation(element),
+        });
 
         if (nextElement) {
             removeHoverToolbar(element);
@@ -581,8 +604,14 @@ function createHoverToolbar(element) {
     upButton.textContent = "";
     upButton.classList.add("editor-up-button");
 
-    upButton.addEventListener("click", _ => {
+    upButton.addEventListener("click", async _ => {
         let prevElement = element.previousElementSibling;
+
+        // TODO: needs more info here
+        await fetch("/post", {
+            method: "POST",
+            body: "move-element-up\n" + serializePlacementLocation(element),
+        });
 
         if (prevElement) {
             removeHoverToolbar(element);
@@ -643,9 +672,9 @@ function serializePlacementLocation(element) {
         }
     }
     if (i == elements.length) {
-        console.error("fatal: cannot find element in DOM to serialize: " + element.tagName, element);
+        console.error("fatal: cannot find element in DOM to serialize: " + element.tagName.toLowerCase(), element);
     }
-    return location.href.replace(location.origin, "") + "\n" + element.tagName + "\n" + (element.classList.contains("alert") ? "alert" : "not-alert") + "\n" + i + "\n";
+    return location.href.replace(location.origin, "") + "\n" + element.tagName.toLowerCase() + "\n" + (element.classList.contains("alert") ? "alert" : "not-alert") + "\n" + i + "\n";
 }
 
 /**
@@ -653,7 +682,6 @@ function serializePlacementLocation(element) {
  * @returns {string}
  */
 function serializeElementHtml(element) {
-    console.log("element html: ", element.outerHTML + "\n");
     return element.outerHTML + "\n";
 }
 
