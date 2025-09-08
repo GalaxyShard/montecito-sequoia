@@ -380,7 +380,7 @@ function createAddElementDropdown(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "add-info-alert\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
         });
 
         removeHoverToolbar(element);
@@ -401,7 +401,7 @@ function createAddElementDropdown(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "add-warning-alert\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
         });
 
         removeHoverToolbar(element);
@@ -422,7 +422,7 @@ function createAddElementDropdown(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "add-image\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
         });
 
         removeHoverToolbar(element);
@@ -448,7 +448,7 @@ function createAddElementDropdown(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "add-link\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
         });
 
         removeHoverToolbar(element);
@@ -471,7 +471,7 @@ function createAddElementDropdown(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "add-paragraph\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
         });
 
         removeHoverToolbar(element);
@@ -493,7 +493,7 @@ function createAddElementDropdown(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "add-horizontal-row\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
         });
 
         removeHoverToolbar(element);
@@ -573,6 +573,7 @@ function createHoverToolbar(element) {
         let nextElement = element.nextElementSibling.nextElementSibling; // skip the toolbar
 
         // TODO: needs more info here
+        // maybe use a remove-and-replace command instead of move-element-down/up
         await fetch("/post", {
             method: "POST",
             body: "move-element-down\n" + serializePlacementLocation(element),
@@ -608,6 +609,7 @@ function createHoverToolbar(element) {
         let prevElement = element.previousElementSibling;
 
         // TODO: needs more info here
+        // maybe use a remove-and-replace command instead of move-element-down/up
         await fetch("/post", {
             method: "POST",
             body: "move-element-up\n" + serializePlacementLocation(element),
