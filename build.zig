@@ -7,6 +7,7 @@ pub fn build(b: *std.Build) !void {
     const editor_step = b.step("editor", "Compile the editor executable");
     const run_editor_step = b.step("run-editor", "Run the editor executable");
     const check_step = b.step("check", "Check for compile errors");
+    const test_step = b.step("test", "Test the editor executable");
     const pnpm_enabled = b.option(bool, "pnpm", "Run pnpm before compiling (default: true)") orelse true;
 
     const editor = b.addExecutable(.{
@@ -109,6 +110,13 @@ pub fn build(b: *std.Build) !void {
 
     const run_editor = b.addRunArtifact(editor);
     run_editor_step.dependOn(&run_editor.step);
+
+    const editor_tests = b.addTest(.{
+        .name = "test-editor",
+        .root_module = editor.root_module,
+    });
+    const run_editor_tests = b.addRunArtifact(editor_tests);
+    test_step.dependOn(&run_editor_tests.step);
 
     const install_editor = b.addInstallArtifact(editor, .{});
     editor_step.dependOn(&install_editor.step);
