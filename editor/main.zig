@@ -209,6 +209,108 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     try request.respond("", .{ .status = .ok });
 }
 
+fn findNthTagIndex(contents: []const u8, tag: []const u8, n: usize) ?usize {
+    std.debug.assert(tag.len <= 32-1);
+    var buffer: [32]u8 = undefined;
+    buffer[0] = '<';
+    @memcpy(buffer[1..][0..tag.len], tag);
+    const slice = buffer[0..tag.len+1];
+
+    var counter: usize = 0;
+    var after_last: usize = 0;
+    while (std.mem.indexOfPos(u8, contents, after_last, slice)) |index| {
+        after_last = index + 1;
+        if (contents[index+slice.len] != ' ' and contents[index+slice.len] != '>') {
+            continue;
+        }
+        if (counter == n) {
+            return index;
+        }
+        counter += 1;
+    }
+    return null;
+}
+
+/// returns an index into contents exactly 1 byte after the `>` at the end of the closing tag
+fn findClosingTag(contents: []const u8, tag: []const u8, tag_start: usize) ?usize {
+    std.debug.assert(tag.len <= 32-3);
+
+    if (std.mem.eql(u8, tag, "img")) {
+        return if (std.mem.indexOfScalarPos(u8, contents, tag_start+1, '>')) |i| i + 1 else null;
+    }
+
+    var buffer0: [32]u8 = undefined;
+    buffer0[0] = '<';
+    @memcpy(buffer0[1..][0..tag.len], tag);
+    const start_query = buffer0[0..tag.len+1];
+
+    var buffer1: [32]u8 = undefined;
+    buffer1[0] = '<';
+    buffer1[1] = '/';
+    @memcpy(buffer1[2..][0..tag.len], tag);
+    buffer1[2+tag.len] = '>';
+    const end_query = buffer1[0..tag.len+3];
+
+    return if (findClosingTag2(contents, tag_start + 1, start_query, end_query, 0)) |i| i + end_query.len else null;
+}
+fn findClosingTag2(contents: []const u8, start: usize, start_query: []const u8, end_query: []const u8, depth: usize) ?usize {
+    const closing_tag = std.mem.indexOfPos(u8, contents, start, end_query) orelse return null;
+    const start_tag_opt = std.mem.indexOfPos(u8, contents[0..closing_tag], start, start_query);
+    if (start_tag_opt) |start_tag| {
+        return findClosingTag2(contents, start_tag+1, start_query, end_query, depth + 1);
+    }
+    if (depth > 0) {
+        return findClosingTag2(contents, closing_tag+1, start_query, end_query, depth - 1);
+    }
+    return closing_tag;
+}
+
+test findClosingTag {
+    const case0 = "<p> <p> </p> </p>";
+    const indx0 = "<p> <p> </p> </p>".len;
+    try std.testing.expectEqual(indx0, findClosingTag(case0, "p", 0));
+
+    const case1 = "<img-fitted> <img-fitted> <img-fitted></img-fitted> </img-fitted> </img-fitted>";
+    const indx1 = "<img-fitted> <img-fitted> <img-fitted></img-fitted> </img-fitted> </img-fitted>".len;
+    try std.testing.expectEqual(indx1, findClosingTag(case1, "img-fitted", 0));
+
+    const case2 = "<p> <p> <p></p> </p> </p>";
+    const indx2 = "<p> <p> <p></p> </p> </p>".len;
+    try std.testing.expectEqual(indx2, findClosingTag(case2, "p", 0));
+
+    const case3 = "<p> <p> </p> <p> </p> </p> - <p> </p>";
+    const indx3 = "<p> <p> </p> <p> </p> </p>".len;
+    try std.testing.expectEqual(indx3, findClosingTag(case3, "p", 0));
+
+    const case4 = "<p> <p></p> <p>x</p> </p> - <p></p>";
+    const indx4 = "<p> <p></p> <p>x</p> </p>".len;
+    try std.testing.expectEqual(indx4, findClosingTag(case4, "p", 0));
+
+    const case5 = "<p> </p> <p> </p>";
+    const indx5 = "<p> </p>".len;
+    try std.testing.expectEqual(indx5, findClosingTag(case5, "p", 0));
+
+    const case6 = "<img src=\"file.png\">";
+    const indx6 = "<img src=\"file.png\">".len;
+    try std.testing.expectEqual(indx6, findClosingTag(case6, "img", 0));
+
+    // <p> <p> </p> </p> - correct
+    //  1   2   3   ^
+    //  0   1   0
+    // <p> <p> <p></p> </p> </p> - correct
+    //  1   2   3   4    5    ^
+    //  0   1   2   1    0
+    // <p> <p> </p> <p> </p> </p> -
+    // <p> </p> <p> </p> - correct
+    //  ^ start
+}
+
+fn leadingSpaces(contents: []const u8, index: usize) usize {
+    const line_start = if (std.mem.lastIndexOfScalar(u8, contents[0..index], '\n')) |i| i + 1 else 0;
+    const spaces_end = std.mem.indexOfNonePos(u8, contents, line_start, " ") orelse contents.len;
+    return spaces_end - line_start;
+}
+
 fn findHtml(alloc: std.mem.Allocator, mode: std.fs.File.OpenMode, site_dir: []const u8, relative: []const u8) error{ UnsafePath, NotFound, OutOfMemory }!struct{ std.fs.File, []const u8 } {
     if (hasDirectoryTraversal(relative)) {
         return error.UnsafePath;
