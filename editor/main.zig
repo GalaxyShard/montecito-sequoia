@@ -211,8 +211,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     // replace-element: location and html
     // add-element: location and html
     // remove-element: location ONLY
-    // *move-element-down: later
-    // *move-element-up: later
+    // move-element: location, html, before/after, and location
 
     var body_iter = std.mem.splitScalar(u8, body, '\n');
     const command = body_iter.next() orelse return error.InvalidPost;

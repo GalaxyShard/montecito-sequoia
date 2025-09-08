@@ -577,17 +577,17 @@ function createHoverToolbar(element) {
     downButton.addEventListener("click", async _ => {
         let nextElement = element.nextElementSibling.nextElementSibling; // skip the toolbar
 
-        // TODO: needs more info here
-        // maybe use a remove-and-replace command instead of move-element-down/up
-        await fetch("/post", {
-            method: "POST",
-            body: "move-element-down\n" + serializePlacementLocation(element),
-        });
-
         if (nextElement) {
+            const placeInsideNext = tagIs(nextElement, "DIV", "MAIN", "ASIDE", "SECTION") && !nextElement.classList.contains("row");
+            const newPlacementElement = placeInsideNext ? nextElement.firstElementChild : nextElement;
+            await fetch("/post", {
+                method: "POST",
+                body: "move-element\n" + serializePlacementLocation(element) + (placeInsideNext ? "before\n" : "after\n") + serializePlacementLocation(newPlacementElement),
+            });
+
             removeHoverToolbar(element);
 
-            if (tagIs(nextElement, "DIV", "MAIN", "ASIDE", "SECTION") && !nextElement.classList.contains("row")) {
+            if (placeInsideNext) {
                 nextElement.insertBefore(element, nextElement.firstElementChild);
             } else {
                 nextElement.insertAdjacentElement("afterend", element);
@@ -598,6 +598,12 @@ function createHoverToolbar(element) {
                 && !element.parentElement.parentElement.classList.contains("row"))
             {
                 // allow moving images up to the body, and anything else up one level but not to the body or out of a column
+
+                await fetch("/post", {
+                    method: "POST",
+                    body: "move-element\n" + serializePlacementLocation(element) + "after\n" + serializePlacementLocation(element.parentElement),
+                });
+
                 removeHoverToolbar(element);
                 element.parentElement.insertAdjacentElement("afterend", element);
             }
@@ -613,17 +619,17 @@ function createHoverToolbar(element) {
     upButton.addEventListener("click", async _ => {
         let prevElement = element.previousElementSibling;
 
-        // TODO: needs more info here
-        // maybe use a remove-and-replace command instead of move-element-down/up
-        await fetch("/post", {
-            method: "POST",
-            body: "move-element-up\n" + serializePlacementLocation(element),
-        });
-
         if (prevElement) {
+            const placeInsidePrev = tagIs(prevElement, "DIV", "MAIN", "ASIDE", "SECTION") && !prevElement.classList.contains("row");
+            const newPlacementElement = placeInsidePrev ? prevElement.lastElementChild : prevElement;
+            await fetch("/post", {
+                method: "POST",
+                body: "move-element\n" + serializePlacementLocation(element) + (placeInsidePrev ? "after\n" : "before\n") + serializePlacementLocation(newPlacementElement),
+            });
+
             removeHoverToolbar(element);
 
-            if (tagIs(prevElement, "DIV", "MAIN", "ASIDE", "SECTION") && !prevElement.classList.contains("row")) {
+            if (placeInsidePrev) {
                 prevElement.append(element);
             } else {
                 element.parentElement.insertBefore(element, prevElement);
@@ -634,7 +640,14 @@ function createHoverToolbar(element) {
             && !element.parentElement.parentElement.classList.contains("row"))
         {
             // allow moving images up to the body, and anything else up one level but not to the body or out of a column
+
+            await fetch("/post", {
+                method: "POST",
+                body: "move-element\n" + serializePlacementLocation(element) + "before\n" + serializePlacementLocation(),
+            });
+
             removeHoverToolbar(element);
+
             element.parentElement.parentElement.insertBefore(element, element.parentElement);
         }
     });
