@@ -344,9 +344,6 @@ function createLinkEditor(element) {
     element.parentElement.replaceChild(container, element);
 }
 
-
-
-
 /**
  * @param {HTMLElement} element
  */
@@ -365,26 +362,39 @@ function createAddElementDropdown(element) {
 
     let insertAlert = document.createElement("button");
     insertAlert.textContent = "Info Alert";
-    insertAlert.addEventListener("click", _ => {
-        removeHoverToolbar(element);
-
+    insertAlert.addEventListener("click", async _ => {
         let e = document.createElement("div");
         e.classList.add("alert", "alert-info", "text-center", "px-5");
         e.role = "alert";
+
+        await fetch("/post", {
+            method: "POST",
+            body: "add-info-alert\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+        });
+
+        removeHoverToolbar(element);
+
         setupElementEditing(e);
         element.insertAdjacentElement("afterend", e);
+
     });
     dropdown.append(insertAlert);
 
 
     let insertWarning = document.createElement("button");
     insertWarning.textContent = "Warning Alert";
-    insertWarning.addEventListener("click", _ => {
-        removeHoverToolbar(element);
-
+    insertWarning.addEventListener("click", async _ => {
         let e = document.createElement("div");
         e.classList.add("alert", "alert-warning", "text-center", "px-5");
         e.role = "alert";
+
+        await fetch("/post", {
+            method: "POST",
+            body: "add-warning-alert\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+        });
+
+        removeHoverToolbar(element);
+
         setupElementEditing(e);
         element.insertAdjacentElement("afterend", e);
     });
@@ -393,17 +403,19 @@ function createAddElementDropdown(element) {
 
     let insertImage = document.createElement("button");
     insertImage.textContent = "Image";
-    insertImage.addEventListener("click", _ => {
-        removeHoverToolbar(element);
-
+    insertImage.addEventListener("click", async _ => {
         let e = document.createElement("img-fitted");
         e.role = "img";
-        e.setAttribute("style", `--image:url('/assets/logos/montecito.svg');
-            --image-max:500px;
-            height:calc(250px + 5vw);
-            border-radius:5px;
-        `);
+        e.setAttribute("style", "\n    --image:url('/assets/logos/montecito.svg');\n    --image-max:500px;\n    height:calc(250px + 5vw);\n    border-radius:5px;\n");
         e.setAttribute("aria-label", "");
+
+        await fetch("/post", {
+            method: "POST",
+            body: "add-image\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+        });
+
+        removeHoverToolbar(element);
+
         // TODO: accessibility & configuration of images
         setupElementEditing(e);
         if (element.classList.contains("alert")) {
@@ -417,13 +429,19 @@ function createAddElementDropdown(element) {
 
     let insertLink = document.createElement("button");
     insertLink.textContent = "Link";
-    insertLink.addEventListener("click", _ => {
-        removeHoverToolbar(element);
-
+    insertLink.addEventListener("click", async _ => {
         let e = document.createElement("a");
         e.textContent = "Link";
         e.href = "/";
         e.classList.add("link-button-log", "link-arrow");
+
+        await fetch("/post", {
+            method: "POST",
+            body: "add-link\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+        });
+
+        removeHoverToolbar(element);
+
         setupElementEditing(e);
         if (element.classList.contains("alert")) {
             element.append(e);
@@ -436,11 +454,17 @@ function createAddElementDropdown(element) {
 
     let insertParagraph = document.createElement("button");
     insertParagraph.textContent = "Paragraph";
-    insertParagraph.addEventListener("click", _ => {
-        removeHoverToolbar(element);
-
+    insertParagraph.addEventListener("click", async _ => {
         let e = document.createElement("p");
         e.textContent = "Text";
+
+        await fetch("/post", {
+            method: "POST",
+            body: "add-paragraph\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+        });
+
+        removeHoverToolbar(element);
+
         setupElementEditing(e);
         if (element.classList.contains("alert")) {
             element.append(e);
@@ -453,10 +477,16 @@ function createAddElementDropdown(element) {
 
     let insertHr = document.createElement("button");
     insertHr.textContent = "Horizontal Bar";
-    insertHr.addEventListener("click", _ => {
+    insertHr.addEventListener("click", async _ => {
+        let e = document.createElement("hr");
+
+        await fetch("/post", {
+            method: "POST",
+            body: "add-horizontal-row\n" + serializePlacementLocation(element) + serializeElementHtml(e),
+        });
+
         removeHoverToolbar(element);
 
-        let e = document.createElement("hr");
         setupElementEditing(e);
         element.insertAdjacentElement("afterend", e);
     });
@@ -598,6 +628,33 @@ function createHoverToolbar(element) {
         removeHoverToolbar(currentToolbarElement);
     }
     currentToolbarElement = element;
+}
+
+/**
+ * @param {HTMLElement} element
+ * @returns {string}
+ */
+function serializePlacementLocation(element) {
+    let elements = document.getElementsByTagName(element.tagName);
+    let i;
+    for (i = 0; i < elements.length; ++i) {
+        if (elements[i] == element) {
+            break;
+        }
+    }
+    if (i == elements.length) {
+        console.error("fatal: cannot find element in DOM to serialize: " + element.tagName, element);
+    }
+    return location.href.replace(location.origin, "") + "\n" + element.tagName + "\n" + (element.classList.contains("alert") ? "alert" : "not-alert") + "\n" + i + "\n";
+}
+
+/**
+ * @param {HTMLElement} element
+ * @returns {string}
+ */
+function serializeElementHtml(element) {
+    console.log("element html: ", element.outerHTML + "\n");
+    return element.outerHTML + "\n";
 }
 
 /**
