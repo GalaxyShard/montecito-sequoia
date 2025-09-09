@@ -331,6 +331,122 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index]));
         try writer.interface.writeByte('\n');
         try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[closing_index..]));
+    } else if (std.mem.eql(u8, command, "move-element")) {
+        const placement_string = body_iter.next() orelse return error.InvalidPost;
+        const placement: enum { before, after, in_start, in_end } = blk: {
+            if (std.mem.eql(u8, placement_string, "before")) {
+                break :blk .before;
+            } else if (std.mem.eql(u8, placement_string, "after")) {
+                break :blk .after;
+            } else if (std.mem.eql(u8, placement_string, "in-start")) {
+                break :blk .in_start;
+            } else if (std.mem.eql(u8, placement_string, "in-end")) {
+                break :blk .in_end;
+            } else {
+                return error.InvalidPost;
+            }
+        };
+
+        // cases
+        //      <--- maybe here (before)
+        // <p>
+        //     <p>old</p>
+        // </p>
+        //      <--- maybe here (after)
+        //
+        // ---
+        //
+        // <p>
+        //          <--- maybe here (before)
+        //     <p>element0</p>
+        //     <p>old</p>
+        //     <p>element1</p>
+        //          <--- maybe here (after)
+        // </p>
+        //
+        // ---
+        //
+        // <p>
+        //     <p>element0</p>
+        //          <--- maybe here (in-end)
+        // </p>
+        // <p>old</p>
+        // <p>
+        //          <--- maybe here (in-start)
+        //     <p>element1</p>
+        // </p>
+
+
+        const new_location = decodeElementLocation(&body_iter) orelse return error.InvalidPost;
+
+        const old_start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
+        const old_closing_index = findClosingTag(file_contents, location.element_tag, old_start_index) orelse return error.MalformedHtml;
+        const old_indentation = leadingSpaces(file_contents, old_start_index);
+        const old_html = file_contents[old_start_index..old_closing_index];
+
+        const new_start_index = findNthTagIndex(file_contents, new_location.element_tag, new_location.element_index) orelse return error.InvalidPost;
+        const new_closing_index = findClosingTag(file_contents, new_location.element_tag, new_start_index) orelse return error.MalformedHtml;
+        const new_indentation = leadingSpaces(file_contents, new_start_index);
+
+        switch (placement) {
+            .before => {
+                // new placement comes first
+                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..new_start_index]));
+                try writer.interface.writeByte('\n');
+
+                try writeIndented(&writer.interface, old_html, new_indentation, old_indentation);
+                try writer.interface.splatByteAll(' ', new_indentation);
+
+                // already trimmed before new_start_index, only trim before old_start_index
+                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[new_start_index..old_start_index]));
+                try writer.interface.writeByte('\n');
+
+                try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[old_closing_index..]));
+            },
+            .in_end => {
+                // new placement comes first
+                // only valid for non-void elements, but it's not possible to place an element inside of those so this is fine here
+                const new_closing_tag_length = new_location.element_tag.len + "</>".len;
+                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..new_closing_index-new_closing_tag_length]));
+                try writer.interface.writeByte('\n');
+
+                try writeIndented(&writer.interface, old_html, new_indentation+4, old_indentation);
+                try writer.interface.splatByteAll(' ', new_indentation);
+
+                // already trimmed before new_closing_index, only trim before old_start_index
+                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[new_closing_index-new_closing_tag_length..old_start_index]));
+                try writer.interface.writeByte('\n');
+
+                try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[old_closing_index..]));
+            },
+            .after => {
+                // old element comes first; remove it
+                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..old_start_index]));
+                try writer.interface.writeByte('\n');
+                try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[old_closing_index..new_closing_index]));
+
+                try writer.interface.writeByte('\n');
+
+                try writeIndented(&writer.interface, old_html, new_indentation, old_indentation);
+
+                try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[new_closing_index..]));
+            },
+            .in_start => {
+                // old element comes first; remove it
+                const after_start = 1 + (std.mem.indexOfScalarPos(u8, file_contents, new_start_index, '>') orelse return error.MalformedHtml);
+
+                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..old_start_index]));
+                try writer.interface.writeByte('\n');
+                try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[old_closing_index..after_start]));
+
+                try writer.interface.writeByte('\n');
+
+                try writeIndented(&writer.interface, old_html, new_indentation+4, old_indentation);
+
+                try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[after_start..]));
+            },
+        }
+
     } else {
         return error.InvalidPost;
     }
