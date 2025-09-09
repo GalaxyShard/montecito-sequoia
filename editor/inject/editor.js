@@ -191,7 +191,7 @@ function createTextEditor(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "replace-element\n" + serializedLocation + html + "\n",
+            body: serializeCommand("replace-element") + serializedLocation + html + "\n",
         });
 
         for (let e of frag.children) {
@@ -270,7 +270,7 @@ function createImageEditor(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "replace-element\n" + serializedLocation + serializeElementHtml(element),
+            body: serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element),
         });
 
         setupElementEditing(element);
@@ -333,7 +333,7 @@ function createLinkEditor(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "replace-element\n" + serializedLocation + serializeElementHtml(element),
+            body: serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element),
         });
 
         setupElementEditing(element);
@@ -368,6 +368,21 @@ function createAddElementDropdown(element) {
     dropdown.classList.add("editor-toolbar");
     dropdown.classList.add("editor-dropdown");
 
+    async function finalizeAddition(newElement) {
+        await fetch("/post", {
+            method: "POST",
+            body: serializeCommand("add-element") + serializePlacementLocation(element) + serializeElementHtml(newElement),
+        });
+
+        removeHoverToolbar(element);
+
+        setupElementEditing(newElement);
+        if (element.classList.contains("alert")) {
+            element.append(newElement);
+        } else {
+            element.insertAdjacentElement("afterend", newElement);
+        }
+    }
 
     let insertAlert = document.createElement("button");
     insertAlert.classList.add("editor-element");
@@ -376,17 +391,7 @@ function createAddElementDropdown(element) {
         let e = document.createElement("div");
         e.classList.add("alert", "alert-info", "text-center", "px-5");
         e.role = "alert";
-
-        await fetch("/post", {
-            method: "POST",
-            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
-        });
-
-        removeHoverToolbar(element);
-
-        setupElementEditing(e);
-        element.insertAdjacentElement("afterend", e);
-
+        await finalizeAddition(e);
     });
     dropdown.append(insertAlert);
 
@@ -398,16 +403,7 @@ function createAddElementDropdown(element) {
         let e = document.createElement("div");
         e.classList.add("alert", "alert-warning", "text-center", "px-5");
         e.role = "alert";
-
-        await fetch("/post", {
-            method: "POST",
-            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
-        });
-
-        removeHoverToolbar(element);
-
-        setupElementEditing(e);
-        element.insertAdjacentElement("afterend", e);
+        await finalizeAddition(e);
     });
     dropdown.append(insertWarning);
 
@@ -420,21 +416,7 @@ function createAddElementDropdown(element) {
         e.role = "img";
         e.setAttribute("style", "\n    --image:url('/assets/logos/montecito.svg');\n    --image-max:500px;\n    height:calc(250px + 5vw);\n    border-radius:5px;\n");
         e.setAttribute("aria-label", "");
-
-        await fetch("/post", {
-            method: "POST",
-            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
-        });
-
-        removeHoverToolbar(element);
-
-        // TODO: accessibility & configuration of images
-        setupElementEditing(e);
-        if (element.classList.contains("alert")) {
-            element.append(e);
-        } else {
-            element.insertAdjacentElement("afterend", e);
-        }
+        await finalizeAddition(e);
     });
     dropdown.append(insertImage);
 
@@ -447,20 +429,7 @@ function createAddElementDropdown(element) {
         e.textContent = "Link";
         e.href = "/";
         e.classList.add("link-button-log", "link-arrow");
-
-        await fetch("/post", {
-            method: "POST",
-            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
-        });
-
-        removeHoverToolbar(element);
-
-        setupElementEditing(e);
-        if (element.classList.contains("alert")) {
-            element.append(e);
-        } else {
-            element.insertAdjacentElement("afterend", e);
-        }
+        await finalizeAddition(e);
     });
     dropdown.append(insertLink);
 
@@ -471,20 +440,7 @@ function createAddElementDropdown(element) {
     insertParagraph.addEventListener("click", async _ => {
         let e = document.createElement("p");
         e.textContent = "Text";
-
-        await fetch("/post", {
-            method: "POST",
-            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
-        });
-
-        removeHoverToolbar(element);
-
-        setupElementEditing(e);
-        if (element.classList.contains("alert")) {
-            element.append(e);
-        } else {
-            element.insertAdjacentElement("afterend", e);
-        }
+        await finalizeAddition(e);
     });
     dropdown.append(insertParagraph);
 
@@ -494,16 +450,7 @@ function createAddElementDropdown(element) {
     insertHr.textContent = "Horizontal Bar";
     insertHr.addEventListener("click", async _ => {
         let e = document.createElement("hr");
-
-        await fetch("/post", {
-            method: "POST",
-            body: "add-element\n" + serializePlacementLocation(element) + serializeElementHtml(e),
-        });
-
-        removeHoverToolbar(element);
-
-        setupElementEditing(e);
-        element.insertAdjacentElement("afterend", e);
+        await finalizeAddition(e);
     });
     dropdown.append(insertHr);
 
@@ -547,7 +494,7 @@ function createHoverToolbar(element) {
 
         await fetch("/post", {
             method: "POST",
-            body: "remove-element\n" + serializePlacementLocation(element),
+            body: serializeCommand("remove-element") + serializePlacementLocation(element),
         });
 
         removeHoverToolbar(element);
@@ -579,10 +526,9 @@ function createHoverToolbar(element) {
 
         if (nextElement) {
             const placeInsideNext = tagIs(nextElement, "DIV", "MAIN", "ASIDE", "SECTION") && !nextElement.classList.contains("row");
-            const newPlacementElement = placeInsideNext ? nextElement.firstElementChild : nextElement;
             await fetch("/post", {
                 method: "POST",
-                body: "move-element\n" + serializePlacementLocation(element) + (placeInsideNext ? "before\n" : "after\n") + serializePlacementLocation(newPlacementElement),
+                body: serializeCommand("move-element") + serializePlacementLocation(element) + (placeInsideNext ? "in-start\n" : "after\n") + serializePlacementLocation(nextElement),
             });
 
             removeHoverToolbar(element);
@@ -601,7 +547,7 @@ function createHoverToolbar(element) {
 
                 await fetch("/post", {
                     method: "POST",
-                    body: "move-element\n" + serializePlacementLocation(element) + "after\n" + serializePlacementLocation(element.parentElement),
+                    body: serializeCommand("move-element") + serializePlacementLocation(element) + "after\n" + serializePlacementLocation(element.parentElement),
                 });
 
                 removeHoverToolbar(element);
@@ -621,10 +567,9 @@ function createHoverToolbar(element) {
 
         if (prevElement) {
             const placeInsidePrev = tagIs(prevElement, "DIV", "MAIN", "ASIDE", "SECTION") && !prevElement.classList.contains("row");
-            const newPlacementElement = placeInsidePrev ? prevElement.lastElementChild : prevElement;
             await fetch("/post", {
                 method: "POST",
-                body: "move-element\n" + serializePlacementLocation(element) + (placeInsidePrev ? "after\n" : "before\n") + serializePlacementLocation(newPlacementElement),
+                body: serializeCommand("move-element") + serializePlacementLocation(element) + (placeInsidePrev ? "in-end\n" : "before\n") + serializePlacementLocation(prevElement),
             });
 
             removeHoverToolbar(element);
@@ -643,7 +588,7 @@ function createHoverToolbar(element) {
 
             await fetch("/post", {
                 method: "POST",
-                body: "move-element\n" + serializePlacementLocation(element) + "before\n" + serializePlacementLocation(),
+                body: serializeCommand("move-element") + serializePlacementLocation(element) + "before\n" + serializePlacementLocation(element.parentElement),
             });
 
             removeHoverToolbar(element);
@@ -696,11 +641,11 @@ function serializePlacementLocation(element) {
 
         // ignore editor-generated elements
         let count = true;
-        if (element.classList.contains("editor")) {
+        if (elements[i].classList.contains("editor")) {
             continue;
         }
-        for (let item of element.classList.values()) {
-            if (item.startsWith("editor-")) {
+        for (let item of elements[i].classList.values()) {
+            if (item.startsWith("editor-") && item != "editor-hover-element") {
                 count = false;
                 break;
             }
@@ -713,7 +658,15 @@ function serializePlacementLocation(element) {
     if (!found) {
         console.error("fatal: cannot find element in DOM to serialize: " + element.tagName.toLowerCase(), element);
     }
-    return location.href.replace(location.origin, "") + "\n" + element.tagName.toLowerCase() + "\n" + (element.classList.contains("alert") ? "alert" : "not-alert") + "\n" + filesystem_index + "\n";
+    return element.tagName.toLowerCase() + "\n" + (element.classList.contains("alert") ? "alert" : "not-alert") + "\n" + filesystem_index + "\n";
+}
+
+/**
+ * @param {string} command
+ * @returns {string}
+ */
+function serializeCommand(command) {
+    return command + "\n" + location.href.replace(location.origin, "") + "\n";
 }
 
 /**
