@@ -139,7 +139,7 @@ fn serverThread(state: *State) void {
         };
         std.debug.print("client: {}\n", .{id});
 
-        const thread = std.Thread.spawn(.{}, serverThread2, .{client, id, state}) catch |e| std.debug.panic("{t}", .{e});
+        const thread = std.Thread.spawn(.{}, serverThread2, .{ client, id, state }) catch |e| std.debug.panic("{t}", .{e});
 
         state.mutex.lock();
         state.clients.append(state.alloc, .{
@@ -156,7 +156,7 @@ fn serverThread(state: *State) void {
     }
 }
 fn serverThread2(client: std.net.Server.Connection, id: usize, state: *State) void {
-    serverThread3(client, id, state) catch |e| std.debug.print("server error: {t}\n client id: {}\n", .{e, id});
+    serverThread3(client, id, state) catch |e| std.debug.print("server error: {t}\n client id: {}\n", .{ e, id });
 }
 fn serverThread3(client: std.net.Server.Connection, id: usize, state: *State) !void {
     defer {
@@ -204,7 +204,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     std.debug.print("recieved POST\n", .{});
     var buffer: [1024]u8 = undefined;
     const body_reader = request.server.reader.bodyReader(&buffer, .none, request.head.content_length);
-    const body = try body_reader.allocRemaining(state.alloc, .limited(1024*1024));
+    const body = try body_reader.allocRemaining(state.alloc, .limited(1024 * 1024));
     defer state.alloc.free(body);
 
     std.debug.print("{s}\n", .{body});
@@ -251,7 +251,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         if (location.is_alert) {
             // add inside the alert; before the closing tag
             const closing_tag_length = location.element_tag.len + "</>".len;
-            try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..closing_index-closing_tag_length]));
+            try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0 .. closing_index - closing_tag_length]));
         } else {
             try writer.interface.writeAll(file_contents[0..closing_index]);
         }
@@ -260,11 +260,10 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
 
         try writeIndented(&writer.interface, html, (if (location.is_alert) indentation + 4 else indentation), null);
 
-
         if (location.is_alert) {
             const closing_tag_length = location.element_tag.len + "</>".len;
             try writer.interface.splatByteAll(' ', indentation);
-            try writer.interface.writeAll(file_contents[closing_index-closing_tag_length..]);
+            try writer.interface.writeAll(file_contents[closing_index - closing_tag_length ..]);
         } else {
             try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[closing_index..]));
         }
@@ -308,7 +307,6 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
 
         try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[closing_index..]));
     } else if (std.mem.eql(u8, command, "remove-element")) {
-
         const start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
         const closing_index = findClosingTag(file_contents, location.element_tag, start_index) orelse return error.MalformedHtml;
 
@@ -376,7 +374,6 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         //     <p>element1</p>
         // </p>
 
-
         const new_location = decodeElementLocation(&body_iter) orelse return error.InvalidPost;
 
         const old_start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
@@ -407,14 +404,14 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
                 // new placement comes first
                 // only valid for non-void elements, but it's not possible to place an element inside of those so this is fine here
                 const new_closing_tag_length = new_location.element_tag.len + "</>".len;
-                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..new_closing_index-new_closing_tag_length]));
+                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0 .. new_closing_index - new_closing_tag_length]));
                 try writer.interface.writeByte('\n');
 
-                try writeIndented(&writer.interface, old_html, new_indentation+4, old_indentation);
+                try writeIndented(&writer.interface, old_html, new_indentation + 4, old_indentation);
                 try writer.interface.splatByteAll(' ', new_indentation);
 
                 // already trimmed before new_closing_index, only trim before old_start_index
-                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[new_closing_index-new_closing_tag_length..old_start_index]));
+                try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[new_closing_index - new_closing_tag_length .. old_start_index]));
                 try writer.interface.writeByte('\n');
 
                 try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[old_closing_index..]));
@@ -441,12 +438,11 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
 
                 try writer.interface.writeByte('\n');
 
-                try writeIndented(&writer.interface, old_html, new_indentation+4, old_indentation);
+                try writeIndented(&writer.interface, old_html, new_indentation + 4, old_indentation);
 
                 try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[after_start..]));
             },
         }
-
     } else {
         return error.InvalidPost;
     }
@@ -482,7 +478,6 @@ fn decodeElementLocation(iter: *std.mem.SplitIterator(u8, .scalar)) ?Serializabl
     };
 }
 
-
 fn writeIndented(writer: *std.Io.Writer, text: []const u8, spaces: usize, skip_space: ?usize) !void {
     var iter = std.mem.splitScalar(u8, text, '\n');
 
@@ -506,9 +501,9 @@ fn writeIndented(writer: *std.Io.Writer, text: []const u8, spaces: usize, skip_s
 /// removes leading spaces (at the end of the contents), a new line, and trailing spaces on the previous line
 fn trimLeadingEmptyLine(contents: []const u8) []const u8 {
     const start = std.mem.trimEnd(u8, contents, " ");
-    if (start[start.len-1] == '\n') {
+    if (start[start.len - 1] == '\n') {
         // trim trailing whitespace
-        return std.mem.trimEnd(u8, start[0..start.len - 1], " ");
+        return std.mem.trimEnd(u8, start[0 .. start.len - 1], " ");
     } else {
         return start[0..start.len];
     }
@@ -536,17 +531,17 @@ fn trimTrailingEmptyLine(contents: []const u8) []const u8 {
 }
 
 fn findNthTagIndex(contents: []const u8, tag: []const u8, n: usize) ?usize {
-    std.debug.assert(tag.len <= 32-1);
+    std.debug.assert(tag.len <= 32 - 1);
     var buffer: [32]u8 = undefined;
     buffer[0] = '<';
     @memcpy(buffer[1..][0..tag.len], tag);
-    const slice = buffer[0..tag.len+1];
+    const slice = buffer[0 .. tag.len + 1];
 
     var counter: usize = 0;
     var after_last: usize = 0;
     while (std.mem.indexOfPos(u8, contents, after_last, slice)) |index| {
         after_last = index + 1;
-        if (contents[index+slice.len] != ' ' and contents[index+slice.len] != '>') {
+        if (contents[index + slice.len] != ' ' and contents[index + slice.len] != '>') {
             continue;
         }
         if (counter == n) {
@@ -568,7 +563,7 @@ fn isAnyString(str: []const u8, strings: []const []const u8) bool {
 
 /// returns an index into contents exactly 1 byte after the `>` at the end of the closing tag
 fn findClosingTag(contents: []const u8, tag: []const u8, tag_start: usize) ?usize {
-    std.debug.assert(tag.len <= 32-3);
+    std.debug.assert(tag.len <= 32 - 3);
 
     // void elements
     // https://developer.mozilla.org/en-US/docs/Glossary/Void_element
@@ -587,20 +582,20 @@ fn findClosingTag(contents: []const u8, tag: []const u8, tag_start: usize) ?usiz
         "track",
         "wbr",
     })) {
-        return if (std.mem.indexOfScalarPos(u8, contents, tag_start+1, '>')) |i| i + 1 else null;
+        return if (std.mem.indexOfScalarPos(u8, contents, tag_start + 1, '>')) |i| i + 1 else null;
     }
 
     var buffer0: [32]u8 = undefined;
     buffer0[0] = '<';
     @memcpy(buffer0[1..][0..tag.len], tag);
-    const start_query = buffer0[0..tag.len+1];
+    const start_query = buffer0[0 .. tag.len + 1];
 
     var buffer1: [32]u8 = undefined;
     buffer1[0] = '<';
     buffer1[1] = '/';
     @memcpy(buffer1[2..][0..tag.len], tag);
-    buffer1[2+tag.len] = '>';
-    const end_query = buffer1[0..tag.len+3];
+    buffer1[2 + tag.len] = '>';
+    const end_query = buffer1[0 .. tag.len + 3];
 
     return if (findClosingTag2(contents, tag_start + 1, start_query, end_query, 0)) |i| i + end_query.len else null;
 }
@@ -608,10 +603,10 @@ fn findClosingTag2(contents: []const u8, start: usize, start_query: []const u8, 
     const closing_tag = std.mem.indexOfPos(u8, contents, start, end_query) orelse return null;
     const start_tag_opt = std.mem.indexOfPos(u8, contents[0..closing_tag], start, start_query);
     if (start_tag_opt) |start_tag| {
-        return findClosingTag2(contents, start_tag+1, start_query, end_query, depth + 1);
+        return findClosingTag2(contents, start_tag + 1, start_query, end_query, depth + 1);
     }
     if (depth > 0) {
-        return findClosingTag2(contents, closing_tag+1, start_query, end_query, depth - 1);
+        return findClosingTag2(contents, closing_tag + 1, start_query, end_query, depth - 1);
     }
     return closing_tag;
 }
@@ -662,25 +657,24 @@ fn leadingSpaces(contents: []const u8, index: usize) usize {
     return spaces_end - line_start;
 }
 
-fn findHtml(alloc: std.mem.Allocator, mode: std.fs.File.OpenMode, site_dir: []const u8, relative: []const u8) error{ UnsafePath, NotFound, OutOfMemory }!struct{ std.fs.File, []const u8 } {
+fn findHtml(alloc: std.mem.Allocator, mode: std.fs.File.OpenMode, site_dir: []const u8, relative: []const u8) error{ UnsafePath, NotFound, OutOfMemory }!struct { std.fs.File, []const u8 } {
     if (hasDirectoryTraversal(relative)) {
         return error.UnsafePath;
     }
 
-    const suffix = (
-        if (relative.len == 0 or relative[relative.len-1] == '/')
-            "index.html"
-        else if (std.fs.path.extension(relative).len == 0)
-            ".html"
-        else
-            ""
-    );
+    const suffix = blk: {
+        if (relative.len == 0 or relative[relative.len - 1] == '/')
+            break :blk "index.html";
+        if (std.fs.path.extension(relative).len == 0)
+            break :blk ".html";
+        break :blk "";
+    };
     var path = try std.mem.join(alloc, "", &.{ site_dir, "/", relative, suffix });
     errdefer alloc.free(path);
 
     const file = std.fs.cwd().openFile(path, .{ .mode = mode }) catch |e| blk1: {
-        if (relative.len == 0 or relative[relative.len-1] == '/') {
-            std.debug.print("404 not found ({t}) {s}\n", .{e, path});
+        if (relative.len == 0 or relative[relative.len - 1] == '/') {
+            std.debug.print("404 not found ({t}) {s}\n", .{ e, path });
 
             return error.NotFound;
         }
@@ -688,7 +682,7 @@ fn findHtml(alloc: std.mem.Allocator, mode: std.fs.File.OpenMode, site_dir: []co
         path = try std.mem.join(alloc, "", &.{ site_dir, "/", relative, "/index.html" });
 
         break :blk1 std.fs.cwd().openFile(path, .{ .mode = mode }) catch |e1| {
-            std.debug.print("404 not found ({t}, {t}) {s}\n", .{e, e1, path});
+            std.debug.print("404 not found ({t}, {t}) {s}\n", .{ e, e1, path });
 
             return error.NotFound;
         };
@@ -698,7 +692,6 @@ fn findHtml(alloc: std.mem.Allocator, mode: std.fs.File.OpenMode, site_dir: []co
 }
 
 fn handleGet(request: *std.http.Server.Request, state: *State) !void {
-
     if (request.head.target.len == 0 or request.head.target[0] != '/') {
         std.debug.print("404: no leading '/'\n", .{});
         try request.respond("404 not found", .{ .status = .not_found });
@@ -720,7 +713,7 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
         },
         error.OutOfMemory => {
             return e;
-        }
+        },
     };
     defer file.close();
     defer state.alloc.free(path);
@@ -732,35 +725,34 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
     defer state.alloc.free(file_contents);
 
     const extension = std.fs.path.extension(path);
-    const mime = (
+    const mime = blk: {
         if (std.mem.eql(u8, extension, ".html"))
-            "text/html"
-        else if (std.mem.eql(u8, extension, ".css"))
-            "text/css"
-        else if (std.mem.eql(u8, extension, ".js"))
-            "text/javascript"
-        else if (std.mem.eql(u8, extension, ".svg"))
-            "image/svg+xml"
-        else if (std.mem.eql(u8, extension, ".jpg"))
-            "image/jpg"
-        else if (std.mem.eql(u8, extension, ".png"))
-            "image/png"
-        else if (std.mem.eql(u8, extension, ".webp"))
-            "image/webp"
-        else if (std.mem.eql(u8, extension, ".woff2"))
-            "font/woff2"
-        else if (std.mem.eql(u8, extension, ".pdf"))
-            "application/pdf"
-        else
-            return error.UnknownFileExtension
-    );
+            break :blk "text/html";
+        if (std.mem.eql(u8, extension, ".css"))
+            break :blk "text/css";
+        if (std.mem.eql(u8, extension, ".js"))
+            break :blk "text/javascript";
+        if (std.mem.eql(u8, extension, ".svg"))
+            break :blk "image/svg+xml";
+        if (std.mem.eql(u8, extension, ".jpg"))
+            break :blk "image/jpg";
+        if (std.mem.eql(u8, extension, ".png"))
+            break :blk "image/png";
+        if (std.mem.eql(u8, extension, ".webp"))
+            break :blk "image/webp";
+        if (std.mem.eql(u8, extension, ".woff2"))
+            break :blk "font/woff2";
+        if (std.mem.eql(u8, extension, ".pdf"))
+            break :blk "application/pdf";
+        return error.UnknownFileExtension;
+    };
 
     if (state.site_mode == .editor and std.mem.eql(u8, extension, ".html")) blk: {
         const index_start = std.mem.indexOf(u8, file_contents, "</title>\n") orelse {
             std.debug.print("unable to find end of title tag (cannot initialize editor)\n", .{});
             break :blk;
         };
-        const index = index_start+"</title>\n".len;
+        const index = index_start + "</title>\n".len;
         const append = (
             \\    <script type="module" src="/editor.js"></script>
             \\    <link rel="stylesheet" href="/editor.css">
@@ -774,7 +766,7 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
                     .name = "Content-Type",
                     .value = mime,
                 },
-            }
+            },
         });
     } else {
         try request.respond(file_contents, .{
@@ -783,7 +775,7 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
                     .name = "Content-Type",
                     .value = mime,
                 },
-            }
+            },
         });
     }
 }
