@@ -185,7 +185,8 @@ fn serverThread3(client: std.net.Server.Connection, id: usize, state: *State) !v
         var request = try http_server.receiveHead();
 
         if (request.head.method == .POST and std.mem.eql(u8, request.head.target, "/post")) {
-            handlePost(&request, state) catch {
+            handlePost(&request, state) catch |e| {
+                std.debug.print("error handling post: {t}\n", .{e});
                 try request.respond("", .{ .status = .bad_request });
             };
             continue;
@@ -211,24 +212,12 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     // replace-element: location and html
     // add-element: location and html
     // remove-element: location ONLY
-    // move-element: location, html, before/after, and location
+    // move-element: location, before/after, and location
 
     var body_iter = std.mem.splitScalar(u8, body, '\n');
     const command = body_iter.next() orelse return error.InvalidPost;
     const get_path = body_iter.next() orelse return error.InvalidPost;
-    const element_tag = body_iter.next() orelse return error.InvalidPost;
-    const is_alert_string = body_iter.next() orelse return error.InvalidPost;
-    const element_index_string = body_iter.next() orelse return error.InvalidPost;
-
-    const is_alert = if (std.mem.eql(u8, is_alert_string, "alert")) blk: {
-        break :blk true;
-    } else if (std.mem.eql(u8, is_alert_string, "not-alert")) blk: {
-        break :blk false;
-    } else {
-        return error.InvalidPost;
-    };
-
-    const element_index = std.fmt.parseInt(usize, element_index_string, 10) catch return error.InvalidPost;
+    const location = decodeElementLocation(&body_iter) orelse return error.invalidPost;
 
     const file_in, const path = findHtml(state.alloc, .read_write, state.site_dir, get_path[1..]) catch |e| switch (e) {
         error.NotFound => return error.InvalidPost,
@@ -255,13 +244,13 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         // note: has a trailing newline
         const html = body_iter.buffer[html_start..body_iter.buffer.len];
 
-        const start_index = findNthTagIndex(file_contents, element_tag, element_index) orelse return error.InvalidPost;
-        const closing_index = findClosingTag(file_contents, element_tag, start_index) orelse return error.MalformedHtml;
+        const start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
+        const closing_index = findClosingTag(file_contents, location.element_tag, start_index) orelse return error.MalformedHtml;
         const indentation = leadingSpaces(file_contents, start_index);
 
-        if (is_alert) {
+        if (location.is_alert) {
             // add inside the alert; before the closing tag
-            const closing_tag_length = element_tag.len + 3;
+            const closing_tag_length = location.element_tag.len + "</>".len;
             try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..closing_index-closing_tag_length]));
         } else {
             try writer.interface.writeAll(file_contents[0..closing_index]);
@@ -269,23 +258,23 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
 
         try writer.interface.writeByte('\n');
 
-        try writeIndented(&writer.interface, html, (if (is_alert) indentation + 4 else indentation));
+        try writeIndented(&writer.interface, html, (if (location.is_alert) indentation + 4 else indentation), null);
 
-        try writer.interface.splatByteAll(' ', indentation);
 
-        if (is_alert) {
-            const closing_tag_length = element_tag.len + 3;
+        if (location.is_alert) {
+            const closing_tag_length = location.element_tag.len + "</>".len;
+            try writer.interface.splatByteAll(' ', indentation);
             try writer.interface.writeAll(file_contents[closing_index-closing_tag_length..]);
         } else {
-            try writer.interface.writeAll(trimTrailingSpace(file_contents[closing_index..]));
+            try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[closing_index..]));
         }
     } else if (std.mem.eql(u8, command, "replace-element")) {
         const html_start = body_iter.index orelse return error.InvalidPost;
         // note: has a trailing newline
         const html = body_iter.buffer[html_start..body_iter.buffer.len];
 
-        const start_index = findNthTagIndex(file_contents, element_tag, element_index) orelse return error.InvalidPost;
-        const closing_index = findClosingTag(file_contents, element_tag, start_index) orelse return error.MalformedHtml;
+        const start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
+        const closing_index = findClosingTag(file_contents, location.element_tag, start_index) orelse return error.MalformedHtml;
         const indentation = leadingSpaces(file_contents, start_index);
 
         // 2 cases
@@ -315,17 +304,33 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index]));
         try writer.interface.writeByte('\n');
 
-        try writeIndented(&writer.interface, html, indentation);
+        try writeIndented(&writer.interface, html, indentation, null);
 
-        try writer.interface.splatByteAll(' ', indentation);
-        try writer.interface.writeAll(trimTrailingSpace(file_contents[closing_index..]));
+        try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[closing_index..]));
     } else if (std.mem.eql(u8, command, "remove-element")) {
 
-        const start_index = findNthTagIndex(file_contents, element_tag, element_index) orelse return error.InvalidPost;
-        const closing_index = findClosingTag(file_contents, element_tag, start_index) orelse return error.MalformedHtml;
+        const start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
+        const closing_index = findClosingTag(file_contents, location.element_tag, start_index) orelse return error.MalformedHtml;
+
+        // cases
+        //
+        // content0
+        // <p>old</p>
+        // content1
+        // ->
+        // content0
+        // content1
+        //
+        // ---
+        //
+        // content0 <p>old</p> content1
+        // ->
+        // content0
+        // content1
 
         try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index]));
-        try writer.interface.writeAll(trimTrailingNewline(file_contents[closing_index..]));
+        try writer.interface.writeByte('\n');
+        try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[closing_index..]));
     } else {
         return error.InvalidPost;
     }
@@ -335,21 +340,54 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     try request.respond("", .{ .status = .ok });
 }
 
-fn writeIndented(writer: *std.Io.Writer, text: []const u8, spaces: usize) !void {
+const SerializableLocation = struct {
+    element_tag: []const u8,
+    is_alert: bool,
+    element_index: usize,
+};
+fn decodeElementLocation(iter: *std.mem.SplitIterator(u8, .scalar)) ?SerializableLocation {
+    const element_tag = iter.next() orelse return null;
+    const is_alert_string = iter.next() orelse return null;
+    const element_index_string = iter.next() orelse return null;
+
+    const is_alert = if (std.mem.eql(u8, is_alert_string, "alert")) blk: {
+        break :blk true;
+    } else if (std.mem.eql(u8, is_alert_string, "not-alert")) blk: {
+        break :blk false;
+    } else {
+        return null;
+    };
+
+    const element_index = std.fmt.parseInt(usize, element_index_string, 10) catch return null;
+    return .{
+        .element_tag = element_tag,
+        .is_alert = is_alert,
+        .element_index = element_index,
+    };
+}
+
+
+fn writeIndented(writer: *std.Io.Writer, text: []const u8, spaces: usize, skip_space: ?usize) !void {
     var iter = std.mem.splitScalar(u8, text, '\n');
+
+    const skip = skip_space orelse 0;
     while (iter.next()) |line| {
         if (line.len == 0) {
             continue;
         }
         try writer.splatByteAll(' ', spaces);
-        try writer.writeAll(line);
+
+        if (skip < line.len and std.mem.allEqual(u8, line[0..skip], ' ')) {
+            try writer.writeAll(line[skip..]);
+        } else {
+            // failsafe; skip_space would have deleted potentially important content
+            try writer.writeAll(line);
+        }
         try writer.writeByte('\n');
     }
 }
 
-/// leading empty line is at the end of the contents
-///
-/// removes leading spaces (at the end of the contents), a new line, and leading spaces on the previous line
+/// removes leading spaces (at the end of the contents), a new line, and trailing spaces on the previous line
 fn trimLeadingEmptyLine(contents: []const u8) []const u8 {
     const start = std.mem.trimEnd(u8, contents, " ");
     if (start[start.len-1] == '\n') {
@@ -359,17 +397,8 @@ fn trimLeadingEmptyLine(contents: []const u8) []const u8 {
         return start[0..start.len];
     }
 }
-/// removes trailing spaces (at the start of the contents) and a newline
-fn trimTrailingNewline(contents: []const u8) []const u8 {
-    const start = std.mem.trimStart(u8, contents, " ");
-    if (start[0] == '\n') {
-        return start[1..];
-    } else {
-        return contents;
-    }
-}
-/// trailing spaces are at the start of the contents
-fn trimTrailingSpace(contents: []const u8) []const u8 {
+/// removes trailing spaces (at the start of the contents), and a newline if it exists
+fn trimTrailingEmptyLine(contents: []const u8) []const u8 {
 
     // cases
     //
@@ -383,9 +412,10 @@ fn trimTrailingSpace(contents: []const u8) []const u8 {
 
     const start = std.mem.trimStart(u8, contents, " ");
     if (start[0] == '\n') {
-        return std.mem.trimStart(u8, start[1..], " ");
+        // trim leading whitespace
+        return start[1..];
     } else {
-        return std.mem.trimStart(u8, start[0..], " ");
+        return start;
     }
 }
 
