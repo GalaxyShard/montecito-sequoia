@@ -411,11 +411,36 @@ fn findNthTagIndex(contents: []const u8, tag: []const u8, n: usize) ?usize {
     return null;
 }
 
+fn isAnyString(str: []const u8, strings: []const []const u8) bool {
+    for (strings) |str0| {
+        if (std.mem.eql(u8, str, str0)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /// returns an index into contents exactly 1 byte after the `>` at the end of the closing tag
 fn findClosingTag(contents: []const u8, tag: []const u8, tag_start: usize) ?usize {
     std.debug.assert(tag.len <= 32-3);
 
-    if (std.mem.eql(u8, tag, "img")) {
+    // void elements
+    // https://developer.mozilla.org/en-US/docs/Glossary/Void_element
+    if (isAnyString(tag, &.{
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "source",
+        "track",
+        "wbr",
+    })) {
         return if (std.mem.indexOfScalarPos(u8, contents, tag_start+1, '>')) |i| i + 1 else null;
     }
 
