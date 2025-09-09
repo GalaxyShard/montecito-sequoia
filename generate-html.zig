@@ -82,7 +82,7 @@ fn generateTemplateMap(alloc: std.mem.Allocator, paths: []const []const u8) !Tem
     for (paths) |path| {
         var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |e_dir| switch (e_dir) {
             error.NotDir => {
-                const file_contents = std.fs.cwd().readFileAlloc(alloc, path, size_cap) catch |e_file| switch (e_file) {
+                const file_contents = std.fs.cwd().readFileAlloc(path, alloc, .limited(size_cap)) catch |e_file| switch (e_file) {
                     error.FileNotFound => std.debug.panic("no file or directory: {s}", .{path}),
                     else => return e_file,
                 };
@@ -106,7 +106,7 @@ fn generateTemplateMap(alloc: std.mem.Allocator, paths: []const []const u8) !Tem
             if (entry.kind != .file) {
                 continue;
             }
-            const file_contents = try entry.dir.readFileAlloc(alloc, entry.basename, size_cap);
+            const file_contents = try entry.dir.readFileAlloc(entry.basename, alloc, .limited(size_cap));
             errdefer alloc.free(file_contents);
 
             const path_owned = try alloc.dupe(u8, entry.path);
@@ -174,7 +174,7 @@ pub fn main() !void {
         }
         // no HTML files larger than 32 MiB
         const size_cap = 1024 * 1024 * 32;
-        const file_contents = try entry.dir.readFileAlloc(alloc, entry.basename, size_cap);
+        const file_contents = try entry.dir.readFileAlloc(entry.basename, alloc, .limited(size_cap));
         defer alloc.free(file_contents);
 
         const output_file = try output_dir.createFile(entry.path, .{});
