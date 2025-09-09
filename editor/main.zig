@@ -219,7 +219,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     const get_path = body_iter.next() orelse return error.InvalidPost;
     const location = decodeElementLocation(&body_iter) orelse return error.invalidPost;
 
-    const file_in, const path = findHtml(state.alloc, .read_write, state.site_dir, get_path[1..]) catch |e| switch (e) {
+    const file_in, const path = findHtml(state.alloc, state.site_dir, get_path[1..]) catch |e| switch (e) {
         error.NotFound => return error.InvalidPost,
         error.UnsafePath => return error.InvalidPost,
         error.OutOfMemory => return e,
@@ -657,7 +657,7 @@ fn leadingSpaces(contents: []const u8, index: usize) usize {
     return spaces_end - line_start;
 }
 
-fn findHtml(alloc: std.mem.Allocator, mode: std.fs.File.OpenMode, site_dir: []const u8, relative: []const u8) error{ UnsafePath, NotFound, OutOfMemory }!struct { std.fs.File, []const u8 } {
+fn findHtml(alloc: std.mem.Allocator, site_dir: []const u8, relative: []const u8) error{ UnsafePath, NotFound, OutOfMemory }!struct { std.fs.File, []const u8 } {
     if (hasDirectoryTraversal(relative)) {
         return error.UnsafePath;
     }
@@ -672,7 +672,7 @@ fn findHtml(alloc: std.mem.Allocator, mode: std.fs.File.OpenMode, site_dir: []co
     var path = try std.mem.join(alloc, "", &.{ site_dir, "/", relative, suffix });
     errdefer alloc.free(path);
 
-    const file = std.fs.cwd().openFile(path, .{ .mode = mode }) catch |e| blk1: {
+    const file = std.fs.cwd().openFile(path, .{}) catch |e| blk1: {
         if (relative.len == 0 or relative[relative.len - 1] == '/') {
             std.debug.print("404 not found ({t}) {s}\n", .{ e, path });
 
@@ -681,7 +681,7 @@ fn findHtml(alloc: std.mem.Allocator, mode: std.fs.File.OpenMode, site_dir: []co
         alloc.free(path);
         path = try std.mem.join(alloc, "", &.{ site_dir, "/", relative, "/index.html" });
 
-        break :blk1 std.fs.cwd().openFile(path, .{ .mode = mode }) catch |e1| {
+        break :blk1 std.fs.cwd().openFile(path, .{}) catch |e1| {
             std.debug.print("404 not found ({t}, {t}) {s}\n", .{ e, e1, path });
 
             return error.NotFound;
@@ -700,7 +700,7 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
     }
 
     const page = request.head.target[1..]; // ignore leading `/`
-    const file, const path = findHtml(state.alloc, .read_only, state.site_dir, page) catch |e| switch (e) {
+    const file, const path = findHtml(state.alloc, state.site_dir, page) catch |e| switch (e) {
         error.UnsafePath => {
             std.debug.print("not sending; path failed hasDirectoryTraversal: {s}\n", .{page});
             try request.respond("404 not found", .{ .status = .not_found });
