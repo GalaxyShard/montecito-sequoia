@@ -131,6 +131,9 @@ pub fn main() !void {
     const delete_backup = try webview.bind(alloc, "backendDeleteBackup", &deleteBackup, .{});
     defer delete_backup.deinit();
 
+    const rename_backup = try webview.bind(alloc, "backendRenameBackup", &renameBackup, .{});
+    defer rename_backup.deinit();
+
     try webview.run();
 }
 
@@ -989,6 +992,7 @@ fn retrieveBackups2(alloc: std.mem.Allocator) ![]const []const u8 {
 
     std.mem.sortUnstable([]const u8, listing.items, {}, struct {
         fn inner(_: void, lhs: []const u8, rhs: []const u8) bool {
+            // descending sort
             return !std.mem.lessThan(u8, lhs, rhs);
         }
     }.inner);
@@ -1063,7 +1067,6 @@ fn restoreBackup2(alloc: std.mem.Allocator, name: []const u8) !void {
     try copyDirectory(alloc, backup, backups_folder, "master-copy");
 }
 
-
 fn deleteBackup(context: Webview.BindContext, name: []const u8) void {
     deleteBackup2(context.alloc, name) catch |e| {
         context.returnError(e) catch |e2| {
@@ -1081,4 +1084,25 @@ fn deleteBackup2(alloc: std.mem.Allocator, name: []const u8) !void {
     const backups_folder = generic_data_folder.openDir("montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
 
     try backups_folder.deleteTree(name);
+}
+
+fn renameBackup(context: Webview.BindContext, args: struct { old_name: []const u8, new_name: []const u8 }) void {
+    renameBackup2(context.alloc, args.old_name, args.new_name) catch |e| {
+        context.returnError(e) catch |e2| {
+            std.debug.panic("double error: {t}, {t}", .{ e, e2 });
+        };
+        return;
+    };
+
+    context.returnValue(void{}) catch |e| {
+        std.debug.panic("error returning: {t}", .{e});
+    };
+}
+fn renameBackup2(alloc: std.mem.Allocator, old_name: []const u8, new_name: []const u8) !void {
+    const generic_data_folder = (known_folders.open(alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    const backups_folder = generic_data_folder.openDir("montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
+
+    const actual_new_name = try std.mem.join(alloc, "", &.{ "backup-", new_name });
+    defer alloc.free(actual_new_name);
+    try backups_folder.rename(old_name, actual_new_name);
 }

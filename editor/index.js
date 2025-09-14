@@ -38,10 +38,12 @@ let manageBackups = document.getElementById("manage-backups");
 let backButtons = document.getElementsByClassName("back-button");
 
 let makeBackup = document.getElementById("make-backup");
+let renameBackup = document.getElementById("rename-backup");
 let restoreBackup = document.getElementById("restore-backup");
 let deleteBackup = document.getElementById("delete-backup");
 let backupsStatus = document.getElementById("backups-status");
 let backupsList = document.getElementById("backups-list");
+let backupNameInput = document.getElementById("backup-name-input");
 
 let selectedBackupEntry = null;
 
@@ -127,6 +129,24 @@ makeBackup.addEventListener("click", () => {
         backupsStatus.textContent = "Failed to backup: " + e;
     });
 });
+
+renameBackup.addEventListener("click", () => {
+    backupsStatus.textContent = "Renaming backup...";
+    if (selectedBackupEntry === null) {
+        backupsStatus.textContent = "No backup selected (click one to select)";
+        return;
+    }
+    let newName = backupNameInput.value;
+    console.log(selectedBackupEntry.dataset.entryName, newName);
+    window.backendRenameBackup({ old_name: selectedBackupEntry.dataset.entryName, new_name: newName }).then(() => {
+        backupsStatus.textContent = "Successfully renamed backup";
+        refreshBackupsList();
+    }).catch(e => {
+        backupsStatus.textContent = "Failed to rename backup: " + e;
+    });
+});
+
+
 
 restoreBackup.addEventListener("click", () => {
     backupsStatus.textContent = "Restoring backup...";

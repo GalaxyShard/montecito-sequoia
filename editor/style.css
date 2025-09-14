@@ -85,3 +85,20 @@ p {
 #delete-backup:active {
     background-color: #c02000;
 }
+
+#rename-backup-container {
+    padding:5px 5px 5px 5px;
+    margin:5px auto;
+    background-color:#101010;
+    width:250px;
+    text-align: center;
+    border-radius:5px;
+}
+#rename-backup {
+    margin:5px auto;
+}
+#rename-backup-container input {
+    margin:5px auto;
+    padding:5px;
+    width: calc(100% - 20px);
+}
