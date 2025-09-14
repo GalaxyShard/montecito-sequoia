@@ -29,10 +29,59 @@ button:active {
     background-color: #40acff;
 }
 
+#backups-list {
+    background-color: #101010;
+    width: 300px;
+    margin:5px auto;
+    padding:5px 10px;
+    border-radius:5px;
+}
+.backup-entry {
+    display: block;
+
+    padding: 5px 10px;
+    margin: 5px auto;
+    width: 100%;
+    border-radius: 5px;
+
+    background-color: #404040;
+    border: 1px solid black;
+/*     text-shadow: 0px 0px 10px #000000; */
+    color: white;
+    font-size: 1em;
+    transition: background-color 0.1s ease;
+}
+.backup-entry:active {
+    background-color: #303030;
+}
+.backup-entry.selected {
+    background-color: #008cff;
+}
+.backup-entry.selected:active {
+    background-color: #008cff;
+}
+
 p {
     text-align:center;
 }
 
-#hosting-page {
-    text-align:center;
+.back-button {
+    background-color: #808080;
+}
+.back-button:active {
+    background-color: #909090;
+}
+
+#restore-backup {
+    background-color: #ff8000;
+}
+#restore-backup:active {
+    background-color: #ff9000;
+}
+
+#delete-backup {
+    background-color: #e02000;
+}
+#delete-backup:active {
+    background-color: #c02000;
 }

@@ -26,6 +26,10 @@
             Open site with editor
         </button>
 
+        <button id="manage-backups">
+            Manage backups
+        </button>
+
         <p>
             <small>
                 <em>
@@ -38,13 +42,28 @@
     <div id="hosting-page" hidden>
         <img class="logo" src="data:image/svg+xml;base64,{{montecito.svg:base64}}" alt="Montecito Logo">
 
-        <button id="back-button">Stop and return to menu</button>
+        <button class="back-button">Stop and return to menu</button>
 
-        <p><span id="hosting-page-title"></span></p>
-        <p><span id="status"></span></p>
+        <p id="hosting-page-title"></p>
+        <p id="hosting-status"></p>
         <div id="link-buttons" hidden>
             <button id="copy-link">Copy URL to clipboard</button>
         </div>
+    </div>
+
+    <div id="manage-backups-page" hidden>
+        <img class="logo" src="data:image/svg+xml;base64,{{montecito.svg:base64}}" alt="Montecito Logo">
+
+        <button class="back-button">&leftarrow; Return to menu</button>
+        <button id="make-backup">Make backup</button>
+
+        <p><span id="backups-status"></span></p>
+
+        <div id="backups-list">
+
+        </div>
+        <button id="restore-backup">Restore from selected backup<br><em>! deletes any changes not backed up !</em></button>
+        <button id="delete-backup">Delete the selected backup</button>
     </div>
 </body>
 </html>

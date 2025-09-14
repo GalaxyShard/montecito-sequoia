@@ -25,19 +25,31 @@
 
 let frontPage = document.getElementById("front-page");
 let hostingPage = document.getElementById("hosting-page");
+let backupsPage = document.getElementById("manage-backups-page");
+
 let hostingPageTitle = document.getElementById("hosting-page-title");
-let webserverStatus = document.getElementById("status");
+let hostingStatus = document.getElementById("hosting-status");
 let copyLink = document.getElementById("copy-link");
+let linkButtons = document.getElementById("link-buttons");
 
 let openProduction = document.getElementById("open-production");
 let openEditor = document.getElementById("open-editor");
-let backButton = document.getElementById("back-button");
+let manageBackups = document.getElementById("manage-backups");
+let backButtons = document.getElementsByClassName("back-button");
 
-let linkButtons = document.getElementById("link-buttons");
+let makeBackup = document.getElementById("make-backup");
+let restoreBackup = document.getElementById("restore-backup");
+let deleteBackup = document.getElementById("delete-backup");
+let backupsStatus = document.getElementById("backups-status");
+let backupsList = document.getElementById("backups-list");
+
+let selectedBackupEntry = null;
 
 function setPage(page) {
     frontPage.hidden = true;
     hostingPage.hidden = true;
+    backupsPage.hidden = true;
+
     linkButtons.hidden = true;
 
     page.hidden = false;
@@ -45,34 +57,113 @@ function setPage(page) {
 openProduction.addEventListener("click", () => {
     setPage(hostingPage);
     hostingPageTitle.textContent = "Previewing production site";
-    webserverStatus.textContent = "Loading...";
+    hostingStatus.textContent = "Loading...";
 
     window.backendHostSite("production").then(info => {
-        webserverStatus.textContent = "http://localhost:" + info.port + "/";
+        hostingStatus.textContent = "http://localhost:" + info.port + "/";
         linkButtons.hidden = false;
     }).catch(e => {
-        webserverStatus.textContent = "Error loading site: " + e;
+        hostingStatus.textContent = "Error loading site: " + e;
     });
 });
 openEditor.addEventListener("click", () => {
     setPage(hostingPage);
     hostingPageTitle.textContent = "Hosting site with editor";
-    webserverStatus.textContent = "Loading...";
+    hostingStatus.textContent = "Loading...";
 
     window.backendHostSite("editor").then(info => {
-        webserverStatus.textContent = "http://localhost:" + info.port + "/";
+        hostingStatus.textContent = "http://localhost:" + info.port + "/";
         linkButtons.hidden = false;
     }).catch(e => {
-        webserverStatus.textContent = "Error loading site: " + e;
+        hostingStatus.textContent = "Error loading site: " + e;
     });
 });
-backButton.addEventListener("click", () => {
-    setPage(frontPage);
-    window.backendStopHosting();
+
+manageBackups.addEventListener("click", () => {
+    setPage(backupsPage);
+    refreshBackupsList();
+});
+function refreshBackupsList() {
+    selectedBackupEntry = null;
+    while (backupsList.firstChild) {
+        backupsList.removeChild(backupsList.lastChild);
+    }
+    backupsStatus.textContent = "Loading backups...";
+
+    window.backendRetrieveBackups().then(listing => {
+        for (let entry of listing) {
+            let container = document.createElement("button");
+            container.classList.add("backup-entry");
+            // note: intentionally not a global regex replacement (/backup-/g); should only replace first occurance (in the beginning of the string)
+            container.textContent = entry.replace("backup-", "");
+            container.dataset.entryName = entry;
+
+            container.addEventListener("click", () => {
+                if (selectedBackupEntry !== null) {
+                    selectedBackupEntry.classList.remove("selected");
+                }
+                if (selectedBackupEntry === container) {
+                    container.classList.remove("selected");
+                    selectedBackupEntry = null;
+                } else {
+                    selectedBackupEntry = container;
+                    selectedBackupEntry.classList.add("selected");
+                }
+            });
+            backupsList.append(container);
+        }
+        backupsStatus.textContent = "Loaded backups";
+    }).catch(e => {
+        backupsStatus.textContent = "Failed to load backups: " + e;
+    });
+}
+
+makeBackup.addEventListener("click", () => {
+    backupsStatus.textContent = "Making backup from master copy...";
+    window.backendMakeBackup().then(() => {
+        backupsStatus.textContent = "Successfully backed up";
+        refreshBackupsList();
+    }).catch(e => {
+        backupsStatus.textContent = "Failed to backup: " + e;
+    });
 });
 
+restoreBackup.addEventListener("click", () => {
+    backupsStatus.textContent = "Restoring backup...";
+    if (selectedBackupEntry === null) {
+        backupsStatus.textContent = "No backup selected (click one to select)";
+        return;
+    }
+    window.backendRestoreBackup(selectedBackupEntry.dataset.entryName).then(() => {
+        backupsStatus.textContent = "Successfully restored backup";
+    }).catch(e => {
+        backupsStatus.textContent = "Failed to restore backup: " + e;
+    });
+});
+
+deleteBackup.addEventListener("click", () => {
+    backupsStatus.textContent = "Deleting backup...";
+    if (selectedBackupEntry === null) {
+        backupsStatus.textContent = "No backup selected (click one to select)";
+        return;
+    }
+    window.backendDeleteBackup(selectedBackupEntry.dataset.entryName).then(() => {
+        backupsStatus.textContent = "Successfully deleted backup";
+        refreshBackupsList();
+    }).catch(e => {
+        backupsStatus.textContent = "Failed to delete backup: " + e;
+    });
+});
+
+for (let button of backButtons) {
+    button.addEventListener("click", () => {
+        setPage(frontPage);
+        window.backendStopHosting();
+    });
+}
+
 copyLink.addEventListener("click", () => {
-    let url = webserverStatus.textContent;
+    let url = hostingStatus.textContent;
     if (!url.startsWith("http")) {
         return;
     }

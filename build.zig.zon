@@ -16,6 +16,12 @@
             .url = "git+https://github.com/dgv/clipboard#0ba2e06f3ade58237a45c4f3321884dee2aba775",
             .hash = "clipboard-0.1.0-4y-6fXgjAAAG9lcF33e0cBPUg-ynG3L6vvPYgei-gokt",
         },
+
+        // zig fetch --save git+https://github.com/ziglibs/known-folders.git
+        .known_folders = .{
+            .url = "git+https://github.com/ziglibs/known-folders.git#ab5cf5feb936fa3b72c95d3ad0c0c67791937ba1",
+            .hash = "known_folders-0.0.0-Fy-PJtTTAADUOhGKM0sxzG4eMkNQxRvx9e5dfHVyaeA3",
+        },
     },
 
     .paths = .{

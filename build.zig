@@ -103,11 +103,15 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    editor.root_module.addImport("clipboard", b.dependency("clipboard", .{}).module("clipboard"));
-    editor.root_module.addImport("Webview", webview.module("Webview"));
-    check_editor.root_module.addImport("clipboard", b.dependency("clipboard", .{}).module("clipboard"));
-    check_editor.root_module.addImport("Webview", webview.module("Webview"));
-
+    const known_folders = b.dependency("known_folders", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    inline for (&[_]*std.Build.Step.Compile{ editor, check_editor }) |e| {
+        e.root_module.addImport("clipboard", b.dependency("clipboard", .{}).module("clipboard"));
+        e.root_module.addImport("Webview", webview.module("Webview"));
+        e.root_module.addImport("known-folders", known_folders.module("known-folders"));
+    }
     const run_editor = b.addRunArtifact(editor);
     run_editor_step.dependOn(&run_editor.step);
 
