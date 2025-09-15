@@ -26,8 +26,8 @@
         // zig fetch --save git+https://codeberg.org/GalaxyShard/filesystem-dialog-zig
         .filesystem_dialog = .{
             //.path = "../../filesystem-dialog-zig",
-            .url = "git+https://codeberg.org/GalaxyShard/filesystem-dialog-zig#f47cc62e762eff05edd1fde56ab994d846d947d3",
-            .hash = "filesystem_dialog-0.0.0-lFPdSk4iAACDqJAr8KCpjb-0kCKgG_5nOffaNAquJ8TI",
+            .url = "git+https://codeberg.org/GalaxyShard/filesystem-dialog-zig#96b434d58d8b6d962650638419a94f4c1b3b46de",
+            .hash = "filesystem_dialog-0.0.0-lFPdSowiAABPljPo5DThYq3NJ4Jl54xaNiiEffC8xTxE",
         },
     },
 

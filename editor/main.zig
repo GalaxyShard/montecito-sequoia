@@ -1128,7 +1128,18 @@ fn importWebsiteCopy(context: Webview.BindContext) void {
     };
 }
 fn importWebsiteCopy2(alloc: std.mem.Allocator) !bool {
-    const picked = try filesystem_dialog.openDirectoryPicker(alloc) orelse return true;
+    const self_dir: ?[]const u8 = std.fs.selfExeDirPathAlloc(alloc) catch null;
+    defer if (self_dir) |d| alloc.free(d);
+
+    const default_dir: ?[:0]const u8 = if (self_dir) |d| blk: {
+        var buf = try alloc.alloc(u8, d.len+1);
+        @memcpy(buf[0..d.len], d);
+        buf[buf.len-1] = 0;
+        break :blk buf[0..buf.len-1 :0];
+    } else null;
+    defer if (default_dir) |d| alloc.free(d);
+
+    const picked = try filesystem_dialog.openDirectoryPicker(alloc, default_dir) orelse return true;
     defer alloc.free(picked);
 
     const generic_data_folder = (known_folders.open(alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
