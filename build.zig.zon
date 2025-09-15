@@ -4,11 +4,11 @@
     .version = "0.0.0",
 
     .dependencies = .{
-        // zig fetch --save git+https://codeberg.org/galaxyshard/zig-webview.git
+        // zig fetch --save git+https://codeberg.org/GalaxyShard/zig-webview
         .webview = .{
             //.path = "../../webview-zig",
-            .url = "git+https://codeberg.org/galaxyshard/zig-webview.git#28eeb3a4e3e06459771e5aae915796717a0b102a",
-            .hash = "webview-0.0.0-XQYxC9YQIgDyLcnP2nNP3ZWVqD6k5ypk2RU84s90tqTi",
+            .url = "git+https://codeberg.org/GalaxyShard/zig-webview#dd6dc9a3592381aabab3017553172201181eda91",
+            .hash = "webview-0.0.0-XQYxC0gSIgDKE8NSumkSZnFyV6EWlUdlMfLNx06oKn0C",
         },
 
         // zig fetch --save git+https://github.com/dgv/clipboard
