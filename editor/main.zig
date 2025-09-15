@@ -1036,7 +1036,7 @@ fn makeBackup2(state: *State) !void {
     var name: std.Io.Writer.Allocating = .init(state.alloc);
     defer name.deinit();
 
-    try name.writer.print("backup-{}-{:0>2}-{:0>2}T{:0>2}:{:0>2}:{:0>2}Z", .{
+    try name.writer.print("backup-{}-{:0>2}-{:0>2}T{:0>2}.{:0>2}.{:0>2}Z", .{
         year_day.year,
         month_day.month.numeric(),
         month_day.day_index,
@@ -1044,7 +1044,9 @@ fn makeBackup2(state: *State) !void {
         day_seconds.getMinutesIntoHour(),
         day_seconds.getSecondsIntoMinute(),
     });
-    const source_dir = try std.fs.cwd().openDir(state.site_dir.?, .{ .iterate = true });
+    var source_dir = try std.fs.cwd().openDir(state.site_dir.?, .{ .iterate = true });
+    defer source_dir.close();
+
     const generic_data_folder = (known_folders.open(state.alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
     const backups_folder = generic_data_folder.openDir("montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
     try copyDirectory(state.alloc, source_dir, backups_folder, name.written());
