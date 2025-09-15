@@ -168,16 +168,11 @@ function createTextEditor(element) {
 
     async function onSave() {
         // convert html into a document fragment
-        const html = editorInstance.getHTML()
-            .replace(/<p><\/p>/g, "")
-            .replace(/  +/g, "")
-            .replace(/\n/g, "")
-            .replace(/<p>/g, "<p>\n    ")
-            .replace(/<\/p>/g, "\n</p>\n");
+        const html_no_attributes = editorInstance.getHTML();
 
         let frag = document.createDocumentFragment();
         let temp = document.createElement('div');
-        temp.innerHTML = html;
+        temp.innerHTML = html_no_attributes;
 
         while (temp.firstChild) {
             frag.appendChild(temp.firstChild);
@@ -188,6 +183,19 @@ function createTextEditor(element) {
         }
 
         decodeAttributes(frag.firstElementChild, container.dataset.attributes);
+
+        let html = "";
+        for (let e of frag.children) {
+            html += e.outerHTML
+                // remove empty elements
+                .replace(/<([a-z0-9]+?)><\/([a-z0-9]+?)>/g, "")
+                // remove excess whitespace
+                .replace(/  +/g, " ")
+                .replace(/\n/g, "")
+                // put contents of paragraphs, headings, and unordered lists on a newline & indent them
+                .replace(/<((p|h[0-9]|ul) ?.+?)>/g, "<$1>\n    ")
+                .replace(/<\/((p|h[0-9]|ul))>/g, "\n</$1>\n");
+        }
 
         await fetch("/post", {
             method: "POST",
