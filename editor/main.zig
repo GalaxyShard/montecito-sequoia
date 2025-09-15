@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Webview = @import("Webview");
 const known_folders = @import("known-folders");
+const filesystem_dialog = @import("filesystem-dialog");
 
 const clipboard = @import("clipboard");
 
@@ -68,6 +69,8 @@ pub fn main() !void {
 
     const alloc = gpa.allocator();
 
+    try filesystem_dialog.init();
+
     const webview = Webview.init(builtin.mode == .Debug, null) orelse return error.FailedToCreateWebview;
     defer webview.destroy();
 
@@ -133,6 +136,9 @@ pub fn main() !void {
 
     const rename_backup = try webview.bind(alloc, "backendRenameBackup", &renameBackup, .{});
     defer rename_backup.deinit();
+
+    const import_website_copy = try webview.bind(alloc, "backendImportWebsiteCopy", &importWebsiteCopy, .{});
+    defer import_website_copy.deinit();
 
     try webview.run();
 }
@@ -1105,4 +1111,38 @@ fn renameBackup2(alloc: std.mem.Allocator, old_name: []const u8, new_name: []con
     const actual_new_name = try std.mem.join(alloc, "", &.{ "backup-", new_name });
     defer alloc.free(actual_new_name);
     try backups_folder.rename(old_name, actual_new_name);
+}
+
+fn importWebsiteCopy(context: Webview.BindContext) void {
+    const cancelled = importWebsiteCopy2(context.alloc) catch |e| {
+        context.returnError(e) catch |e2| {
+            std.debug.panic("double error: {t}, {t}", .{ e, e2 });
+        };
+        return;
+    };
+
+    context.returnValue(.{ .cancelled = cancelled }) catch |e| {
+        std.debug.panic("error returning: {t}", .{e});
+    };
+}
+fn importWebsiteCopy2(alloc: std.mem.Allocator) !bool {
+    const picked = try filesystem_dialog.openDirectoryPicker(alloc) orelse return true;
+    defer alloc.free(picked);
+
+    const generic_data_folder = (known_folders.open(alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    const backups_folder = generic_data_folder.openDir("montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
+
+    var source = try std.fs.cwd().openDir(picked, .{ .iterate = true });
+    defer source.close();
+
+    // move master-copy into backup
+    try backups_folder.deleteTree("backup-master-copy-pre-import");
+    backups_folder.rename("master-copy", "backup-master-copy-pre-import") catch |e| switch (e) {
+        error.FileNotFound => {}, // master copy does not exist; not an error
+        else => return e,
+    };
+
+    try copyDirectory(alloc, source, backups_folder, "master-copy");
+
+    return false;
 }

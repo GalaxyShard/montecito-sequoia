@@ -27,6 +27,8 @@ let frontPage = document.getElementById("front-page");
 let hostingPage = document.getElementById("hosting-page");
 let backupsPage = document.getElementById("manage-backups-page");
 
+let frontPageStatus = document.getElementById("front-page-status");
+
 let hostingPageTitle = document.getElementById("hosting-page-title");
 let hostingStatus = document.getElementById("hosting-status");
 let copyLink = document.getElementById("copy-link");
@@ -35,6 +37,7 @@ let linkButtons = document.getElementById("link-buttons");
 let openProduction = document.getElementById("open-production");
 let openEditor = document.getElementById("open-editor");
 let manageBackups = document.getElementById("manage-backups");
+let importWebsiteCopy = document.getElementById("import-website-copy");
 let backButtons = document.getElementsByClassName("back-button");
 
 let makeBackup = document.getElementById("make-backup");
@@ -55,6 +58,8 @@ function setPage(page) {
     linkButtons.hidden = true;
 
     page.hidden = false;
+
+    frontPageStatus.textContent = "";
 }
 openProduction.addEventListener("click", () => {
     setPage(hostingPage);
@@ -172,6 +177,19 @@ deleteBackup.addEventListener("click", () => {
         refreshBackupsList();
     }).catch(e => {
         backupsStatus.textContent = "Failed to delete backup: " + e;
+    });
+});
+
+importWebsiteCopy.addEventListener("click", () => {
+    frontPageStatus.textContent = "Importing website...";
+    window.backendImportWebsiteCopy().then(info => {
+        if (info.cancelled) {
+            frontPageStatus.textContent = "No folder was selected to import";
+        } else {
+            frontPageStatus.textContent = "Imported website copy";
+        }
+    }).catch(e => {
+        frontPageStatus.textContent = "Failed to import website: " + e;
     });
 });
 

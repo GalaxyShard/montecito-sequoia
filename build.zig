@@ -107,11 +107,18 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    const filesystem_dialog = b.dependency("filesystem_dialog", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     inline for (&[_]*std.Build.Step.Compile{ editor, check_editor }) |e| {
         e.root_module.addImport("clipboard", b.dependency("clipboard", .{}).module("clipboard"));
         e.root_module.addImport("Webview", webview.module("Webview"));
         e.root_module.addImport("known-folders", known_folders.module("known-folders"));
+        e.root_module.addImport("filesystem-dialog", filesystem_dialog.module("filesystem-dialog"));
     }
+
     const run_editor = b.addRunArtifact(editor);
     run_editor_step.dependOn(&run_editor.step);
 
