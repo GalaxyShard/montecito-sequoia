@@ -63,33 +63,33 @@ fn printHelp() void {
     );
     std.debug.print(text, .{});
 }
-fn freeTemplateMap(alloc: std.mem.Allocator, map: TemplateMap) void {
+fn freeTemplateMap(gpa: std.mem.Allocator, map: TemplateMap) void {
     var m = map;
     var iter = m.iterator();
     while (iter.next()) |e| {
-        alloc.free(e.key_ptr.*);
-        alloc.free(e.value_ptr.*);
+        gpa.free(e.key_ptr.*);
+        gpa.free(e.value_ptr.*);
     }
     m.deinit();
 }
-fn generateTemplateMap(alloc: std.mem.Allocator, paths: []const []const u8) !TemplateMap {
-    var map = TemplateMap.init(alloc);
-    errdefer freeTemplateMap(alloc, map);
+fn generateTemplateMap(io: std.Io, gpa: std.mem.Allocator, paths: []const []const u8) !TemplateMap {
+    var map = TemplateMap.init(gpa);
+    errdefer freeTemplateMap(gpa, map);
 
     // no files larger than 32 MiB
     const size_cap = 1024 * 1024 * 32;
 
     for (paths) |path| {
-        var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |e_dir| switch (e_dir) {
+        var dir = std.Io.Dir.cwd().openDir(io, path, .{ .iterate = true }) catch |e_dir| switch (e_dir) {
             error.NotDir => {
-                const file_contents = std.fs.cwd().readFileAlloc(path, alloc, .limited(size_cap)) catch |e_file| switch (e_file) {
+                const file_contents = std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(size_cap)) catch |e_file| switch (e_file) {
                     error.FileNotFound => std.debug.panic("no file or directory: {s}", .{path}),
                     else => return e_file,
                 };
-                errdefer alloc.free(file_contents);
+                errdefer gpa.free(file_contents);
 
-                const name = try alloc.dupe(u8, std.fs.path.basename(path));
-                errdefer alloc.free(name);
+                const name = try gpa.dupe(u8, std.fs.path.basename(path));
+                errdefer gpa.free(name);
 
                 try map.put(name, file_contents);
                 continue;
@@ -97,20 +97,20 @@ fn generateTemplateMap(alloc: std.mem.Allocator, paths: []const []const u8) !Tem
             error.FileNotFound => std.debug.panic("no file or directory found: {s}", .{path}),
             else => return e_dir,
         };
-        defer dir.close();
+        defer dir.close(io);
 
-        var walker = try dir.walk(alloc);
+        var walker = try dir.walk(gpa);
         defer walker.deinit();
 
-        while (try walker.next()) |entry| {
+        while (try walker.next(io)) |entry| {
             if (entry.kind != .file) {
                 continue;
             }
-            const file_contents = try entry.dir.readFileAlloc(entry.basename, alloc, .limited(size_cap));
-            errdefer alloc.free(file_contents);
+            const file_contents = try entry.dir.readFileAlloc(io, entry.basename, gpa, .limited(size_cap));
+            errdefer gpa.free(file_contents);
 
-            const path_owned = try alloc.dupe(u8, entry.path);
-            errdefer alloc.free(path_owned);
+            const path_owned = try gpa.dupe(u8, entry.path);
+            errdefer gpa.free(path_owned);
 
             try map.put(path_owned, file_contents);
         }
@@ -118,12 +118,11 @@ fn generateTemplateMap(alloc: std.mem.Allocator, paths: []const []const u8) !Tem
 
     return map;
 }
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
+pub fn main(init: std.process.Init) !void {
+    const gpa = init.gpa;
+    const io = init.io;
 
-    const alloc = gpa.allocator();
-    var args = try std.process.argsWithAllocator(alloc);
+    var args = try init.minimal.args.iterateAllocator(init.gpa);
     defer args.deinit();
 
     // skip executable path
@@ -141,47 +140,47 @@ pub fn main() !void {
         return error.NoOutputDirectory;
     };
     var template_paths: std.ArrayList([]const u8) = .empty;
-    defer template_paths.deinit(alloc);
+    defer template_paths.deinit(gpa);
     while (args.next()) |arg| {
-        try template_paths.append(alloc, arg);
+        try template_paths.append(gpa, arg);
     }
 
-    var input_dir = try std.fs.cwd().openDir(input_path, .{ .iterate = true });
-    defer input_dir.close();
+    var input_dir = try std.Io.Dir.cwd().openDir(io, input_path, .{ .iterate = true });
+    defer input_dir.close(io);
 
-    try std.fs.cwd().makePath(output_path);
-    var output_dir = try std.fs.cwd().openDir(output_path, .{});
-    defer output_dir.close();
+    try std.Io.Dir.cwd().createDirPath(io, output_path);
+    var output_dir = try std.Io.Dir.cwd().openDir(io, output_path, .{});
+    defer output_dir.close(io);
 
-    const template_map = try generateTemplateMap(alloc, template_paths.items);
-    defer freeTemplateMap(alloc, template_map);
+    const template_map = try generateTemplateMap(io, gpa, template_paths.items);
+    defer freeTemplateMap(gpa, template_map);
 
-    var walker = try input_dir.walk(alloc);
+    var walker = try input_dir.walk(gpa);
     defer walker.deinit();
 
-    while (try walker.next()) |entry| {
+    while (try walker.next(io)) |entry| {
         if (entry.kind != .file or std.mem.containsAtLeast(u8, entry.path, 1, "template")) {
             continue;
         }
 
         if (std.fs.path.dirname(entry.path)) |dir| {
-            try output_dir.makePath(dir);
+            try output_dir.createDirPath(io, dir);
         }
 
         if (!std.mem.endsWith(u8, entry.basename, ".html")) {
-            try entry.dir.copyFile(entry.basename, output_dir, entry.path, .{});
+            try entry.dir.copyFile(entry.basename, output_dir, entry.path, io, .{});
             continue;
         }
         // no HTML files larger than 32 MiB
         const size_cap = 1024 * 1024 * 32;
-        const file_contents = try entry.dir.readFileAlloc(entry.basename, alloc, .limited(size_cap));
-        defer alloc.free(file_contents);
+        const file_contents = try entry.dir.readFileAlloc(io,entry.basename, gpa, .limited(size_cap));
+        defer gpa.free(file_contents);
 
-        const output_file = try output_dir.createFile(entry.path, .{});
-        defer output_file.close();
+        const output_file = try output_dir.createFile(io, entry.path, .{});
+        defer output_file.close(io);
 
         var buffer: [4096]u8 = undefined;
-        var writer = output_file.writer(&buffer);
+        var writer = output_file.writer(io, &buffer);
 
         try performReplacementStream(file_contents, .{
             .writer = &writer.interface,

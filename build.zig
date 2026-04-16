@@ -88,6 +88,7 @@ pub fn build(b: *std.Build) !void {
     generate_editor_app.addDirectoryArg(b.path("site/assets/logos/montecito.svg"));
 
     const editor_index_html = editor_output_files.path(b, "index.html");
+    editor_index_html.addStepDependencies(&editor.step);
     editor.root_module.addAnonymousImport("index.html", .{
         .root_source_file = editor_index_html,
     });

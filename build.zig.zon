@@ -2,13 +2,13 @@
     .name = .montecito,
     .fingerprint = 0xa0cd28613b12f339,
     .version = "0.0.0",
+    .minimum_zig_version = "0.16.0",
 
     .dependencies = .{
         // zig fetch --save git+https://codeberg.org/GalaxyShard/zig-webview
         .webview = .{
-            //.path = "../../webview-zig",
-            .url = "git+https://codeberg.org/GalaxyShard/zig-webview#dd6dc9a3592381aabab3017553172201181eda91",
-            .hash = "webview-0.0.0-XQYxC0gSIgDKE8NSumkSZnFyV6EWlUdlMfLNx06oKn0C",
+            .url = "git+https://codeberg.org/GalaxyShard/zig-webview#026882c07bdac4597cac1f4a8e74e038a62ecab1",
+            .hash = "webview-0.0.0-XQYxC80RIgD_F0z6P9ZxCfIlrYJjbjhvl8udP6JQ3xN9",
         },
 
         // zig fetch --save git+https://github.com/dgv/clipboard
@@ -19,13 +19,12 @@
 
         // zig fetch --save git+https://github.com/ziglibs/known-folders.git
         .known_folders = .{
-            .url = "git+https://github.com/ziglibs/known-folders.git#ab5cf5feb936fa3b72c95d3ad0c0c67791937ba1",
-            .hash = "known_folders-0.0.0-Fy-PJtTTAADUOhGKM0sxzG4eMkNQxRvx9e5dfHVyaeA3",
+            .url = "git+https://github.com/ziglibs/known-folders.git#d6d03830968cca6b7b9f24fd97ee348346a6905d",
+            .hash = "known_folders-0.0.0-Fy-PJk3KAACzUg2us_0JvQQmod1ZA8jBt7MuoKCihq88",
         },
 
         // zig fetch --save git+https://codeberg.org/GalaxyShard/filesystem-dialog-zig
         .filesystem_dialog = .{
-            //.path = "../../filesystem-dialog-zig",
             .url = "git+https://codeberg.org/GalaxyShard/filesystem-dialog-zig#96b434d58d8b6d962650638419a94f4c1b3b46de",
             .hash = "filesystem_dialog-0.0.0-lFPdSowiAABPljPo5DThYq3NJ4Jl54xaNiiEffC8xTxE",
         },

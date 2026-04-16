@@ -10,50 +10,53 @@ const app_html = @embedFile("index.html");
 
 const State = struct {
     // main thread deinitializes, server thread appends, server-client threads remove
-    mutex: std.Thread.Mutex = .{},
-    clients: std.ArrayList(struct { stream: std.net.Stream, thread: std.Thread, id: usize }) = .empty,
+
+    io: std.Io,
+    environ_map: std.process.Environ.Map,
+    mutex: std.Io.Mutex = .init,
+    clients: std.ArrayList(struct { stream: std.Io.net.Stream, thread: std.Thread, id: usize }) = .empty,
 
     // used by main thread only
     thread: ?std.Thread,
 
     // used by server-thread only
-    tcp_server: std.net.Server,
+    tcp_server: std.Io.net.Server,
 
     // used by server-client threads
     site_dir: ?[]const u8,
 
     // used by all threads
-    alloc: std.mem.Allocator,
+    gpa: std.mem.Allocator,
     shutdown: std.atomic.Value(bool) = .init(false),
 
     site_mode: enum { editor, production },
 };
 
-fn copyDirectory(alloc: std.mem.Allocator, source: std.fs.Dir, dest_parent: std.fs.Dir, dest_subdir: []const u8) !void {
-    copyDirectory2(alloc, source, dest_parent, dest_subdir) catch |e| {
-        dest_parent.deleteTree(dest_subdir) catch |e2| {
+fn copyDirectory(io: std.Io, gpa: std.mem.Allocator, source: std.Io.Dir, dest_parent: std.Io.Dir, dest_subdir: []const u8) !void {
+    copyDirectory2(io, gpa, source, dest_parent, dest_subdir) catch |e| {
+        dest_parent.deleteTree(io, dest_subdir) catch |e2| {
             std.debug.print("error creating tree & error deleting tree: {t} {t}\n", .{ e, e2 });
         };
         return e;
     };
 }
-fn copyDirectory2(alloc: std.mem.Allocator, source: std.fs.Dir, dest_parent: std.fs.Dir, dest_subdir: []const u8) !void {
-    var dest = try dest_parent.makeOpenPath(dest_subdir, .{});
-    defer dest.close();
+fn copyDirectory2(io: std.Io, gpa: std.mem.Allocator, source: std.Io.Dir, dest_parent: std.Io.Dir, dest_subdir: []const u8) !void {
+    var dest = try dest_parent.createDirPathOpen(io, dest_subdir, .{});
+    defer dest.close(io);
 
-    var walker = try source.walk(alloc);
+    var walker = try source.walk(gpa);
     defer walker.deinit();
 
-    while (try walker.next()) |entry| {
+    while (try walker.next(io)) |entry| {
         switch (entry.kind) {
             .file => {
-                entry.dir.copyFile(entry.basename, dest, entry.path, .{}) catch |e| {
+                entry.dir.copyFile(entry.basename, dest, entry.path, io, .{}) catch |e| {
                     std.debug.print("failed to copy file '{s}' {t}\n", .{ entry.path, e });
                     return e;
                 };
             },
             .directory => {
-                dest.makeDir(entry.path) catch |e| {
+                dest.createDir(io, entry.path, .default_dir) catch |e| {
                     std.debug.print("failed to make directory '{s}' {t}\n", .{ entry.path, e });
                     return e;
                 };
@@ -63,11 +66,9 @@ fn copyDirectory2(alloc: std.mem.Allocator, source: std.fs.Dir, dest_parent: std
     }
 }
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-
-    const alloc = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const gpa = init.gpa;
+    const io = init.io;
 
     try filesystem_dialog.init();
 
@@ -79,72 +80,75 @@ pub fn main() !void {
     try webview.setHtml(app_html);
 
     const site_dir: ?[]const u8 = blk: {
-        const generic_data_path = (known_folders.getPath(alloc, .data) catch break :blk null) orelse break :blk null;
-        defer alloc.free(generic_data_path);
+        const generic_data_path = (known_folders.getPath(io, gpa, init.environ_map.*, .data) catch break :blk null) orelse break :blk null;
+        defer gpa.free(generic_data_path);
 
-        var generic_data_folder = std.fs.cwd().makeOpenPath(generic_data_path, .{}) catch break :blk null;
-        defer generic_data_folder.close();
+        var generic_data_folder = std.Io.Dir.cwd().createDirPathOpen(io, generic_data_path, .{}) catch break :blk null;
+        defer generic_data_folder.close(io);
 
-        generic_data_folder.access("montecito-site-backups/master-copy", .{ .mode = .read_write }) catch |e| switch (e) {
+        generic_data_folder.access(io, "montecito-site-backups/master-copy", .{ .read=true, .write=true }) catch |e| switch (e) {
             error.FileNotFound => {
-                const self_dir = std.fs.selfExeDirPathAlloc(alloc) catch break :blk null;
-                defer alloc.free(self_dir);
 
-                const site_build_path = try std.fs.path.join(alloc, &.{ self_dir, "site-build" });
-                defer alloc.free(site_build_path);
+                const self_dir = std.process.executableDirPathAlloc(io, gpa) catch break :blk null;
+                defer gpa.free(self_dir);
 
-                var site_dir = std.fs.cwd().openDir(site_build_path, .{ .iterate = true }) catch break :blk null;
-                defer site_dir.close();
+                const site_build_path = try std.fs.path.join(gpa, &.{ self_dir, "site-build" });
+                defer gpa.free(site_build_path);
 
-                copyDirectory(alloc, site_dir, generic_data_folder, "montecito-site-backups/master-copy") catch break :blk null;
+                var site_dir = std.Io.Dir.cwd().openDir(io, site_build_path, .{ .iterate = true }) catch break :blk null;
+                defer site_dir.close(io);
+
+                copyDirectory(io, gpa, site_dir, generic_data_folder, "montecito-site-backups/master-copy") catch break :blk null;
             },
             else => break :blk null,
         };
-        break :blk try std.fs.path.join(alloc, &.{ generic_data_path, "montecito-site-backups", "master-copy" });
+        break :blk try std.fs.path.join(gpa, &.{ generic_data_path, "montecito-site-backups", "master-copy" });
     };
 
     var state: State = .{
+        .io = io,
+        .environ_map = init.environ_map.*,
         .thread = null,
         .tcp_server = undefined,
         .site_mode = undefined,
-        .alloc = alloc,
+        .gpa = gpa,
         .site_dir = site_dir,
     };
-    defer if (state.site_dir) |s| alloc.free(s);
-    defer state.clients.deinit(state.alloc);
+    defer if (state.site_dir) |s| gpa.free(s);
+    defer state.clients.deinit(state.gpa);
 
-    const host_site = try webview.bind(alloc, "backendHostSite", &hostSite, .{&state});
+    const host_site = try webview.bind(gpa, "backendHostSite", &hostSite, .{&state});
     defer host_site.deinit();
 
-    const stop_hosting = try webview.bind(alloc, "backendStopHosting", &stopHosting, .{&state});
+    const stop_hosting = try webview.bind(gpa, "backendStopHosting", &stopHosting, .{&state});
     defer stop_hosting.deinit();
 
-    const copy_to_clipboard = try webview.bind(alloc, "backendCopyToClipboard", &copyToClipboard, .{});
+    const copy_to_clipboard = try webview.bind(gpa, "backendCopyToClipboard", &copyToClipboard, .{&state});
     defer copy_to_clipboard.deinit();
 
-    const retrieve_backups = try webview.bind(alloc, "backendRetrieveBackups", &retrieveBackups, .{alloc});
+    const retrieve_backups = try webview.bind(gpa, "backendRetrieveBackups", &retrieveBackups, .{io, gpa, init.environ_map.*});
     defer retrieve_backups.deinit();
 
-    const make_backup = try webview.bind(alloc, "backendMakeBackup", &makeBackup, .{&state});
+    const make_backup = try webview.bind(gpa, "backendMakeBackup", &makeBackup, .{&state});
     defer make_backup.deinit();
 
-    const restore_backup = try webview.bind(alloc, "backendRestoreBackup", &restoreBackup, .{});
+    const restore_backup = try webview.bind(gpa, "backendRestoreBackup", &restoreBackup, .{&state});
     defer restore_backup.deinit();
 
-    const delete_backup = try webview.bind(alloc, "backendDeleteBackup", &deleteBackup, .{});
+    const delete_backup = try webview.bind(gpa, "backendDeleteBackup", &deleteBackup, .{&state});
     defer delete_backup.deinit();
 
-    const rename_backup = try webview.bind(alloc, "backendRenameBackup", &renameBackup, .{});
+    const rename_backup = try webview.bind(gpa, "backendRenameBackup", &renameBackup, .{&state});
     defer rename_backup.deinit();
 
-    const import_website_copy = try webview.bind(alloc, "backendImportWebsiteCopy", &importWebsiteCopy, .{});
+    const import_website_copy = try webview.bind(gpa, "backendImportWebsiteCopy", &importWebsiteCopy, .{&state});
     defer import_website_copy.deinit();
 
     try webview.run();
 }
 
-fn copyToClipboard(_: Webview.BindContext, text: []const u8) void {
-    clipboard.write(text) catch |e| std.debug.print("error copying to clipboard: {t}\n", .{e});
+fn copyToClipboard(_: Webview.BindContext, text: []const u8, state: *State) void {
+    clipboard.write(state.io, state.environ_map, text) catch |e| std.debug.print("error copying to clipboard: {t}\n", .{e});
 }
 
 fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) void {
@@ -166,19 +170,19 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
         std.debug.panic("unexpected site type '{s}'", .{site_type});
     };
 
-    const address = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 8192);
-    state.tcp_server = address.listen(.{ .reuse_address = true, .force_nonblocking = true }) catch |e| {
+    const address: std.Io.net.IpAddress = .fromIp6(.loopback(8192));
+    state.tcp_server = address.listen(state.io, .{ .reuse_address = true }) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("unrecoverable error: {t}\n", .{e2});
         };
         return;
     };
-    std.debug.print("port: {}\n", .{state.tcp_server.listen_address.getPort()});
+    std.debug.print("port: {}\n", .{state.tcp_server.socket.address.getPort()});
     std.debug.print("site type: {s}\n", .{site_type});
 
     state.thread = std.Thread.spawn(.{}, serverThread, .{state}) catch |e| std.debug.panic("{t}", .{e});
 
-    context.returnValue(.{ .port = state.tcp_server.listen_address.getPort() }) catch |e| std.debug.panic("{t}", .{e});
+    context.returnValue(.{ .port = state.tcp_server.socket.address.getPort() }) catch |e| std.debug.panic("{t}", .{e});
 }
 
 fn serverThread(state: *State) void {
@@ -186,20 +190,20 @@ fn serverThread(state: *State) void {
 
     defer {
         std.debug.print("server shutdown\n", .{});
-        state.mutex.lock();
+        state.mutex.lock(state.io) catch unreachable;
         for (state.clients.items) |client| {
-            if (std.posix.shutdown(client.stream.handle, .both)) {
+            if (0 == std.posix.system.shutdown(client.stream.socket.handle, 2)) {
                 client.thread.join();
-                client.stream.close();
-            } else |e| {
-                std.debug.print("error shutting down client: {t}\n", .{e});
+                client.stream.close(state.io);
+            } else {
+                std.debug.print("error shutting down client\n", .{});
                 client.thread.detach();
             }
         }
         state.clients.clearRetainingCapacity();
-        state.mutex.unlock();
+        state.mutex.unlock(state.io);
 
-        state.tcp_server.deinit();
+        state.tcp_server.deinit(state.io);
     }
 
     var id: usize = 0;
@@ -207,13 +211,13 @@ fn serverThread(state: *State) void {
         if (state.shutdown.load(.monotonic)) {
             return;
         }
-        const client = state.tcp_server.accept() catch |e| {
+        const client = state.tcp_server.accept(state.io) catch |e| {
             if (state.shutdown.load(.monotonic)) {
                 return;
             }
             if (e == error.WouldBlock) {
                 // sleep for 10 ms
-                std.Thread.sleep(std.time.ns_per_ms * 10);
+                std.Io.sleep(state.io, .fromMilliseconds(10), .real) catch unreachable;
                 continue;
             }
             std.debug.print("error accepting client: {t}\n", .{e});
@@ -223,46 +227,46 @@ fn serverThread(state: *State) void {
 
         const thread = std.Thread.spawn(.{}, serverThread2, .{ client, id, state }) catch |e| std.debug.panic("{t}", .{e});
 
-        state.mutex.lock();
-        state.clients.append(state.alloc, .{
-            .stream = client.stream,
+        state.mutex.lock(state.io) catch unreachable;
+        state.clients.append(state.gpa, .{
+            .stream = client,
             .thread = thread,
             .id = id,
         }) catch |e| {
-            state.mutex.unlock();
+            state.mutex.unlock(state.io);
             std.debug.panic("{t}", .{e});
         };
-        state.mutex.unlock();
+        state.mutex.unlock(state.io);
 
         id += 1;
     }
 }
-fn serverThread2(client: std.net.Server.Connection, id: usize, state: *State) void {
+fn serverThread2(client: std.Io.net.Stream, id: usize, state: *State) void {
     serverThread3(client, id, state) catch |e| std.debug.print("server error: {t}\n client id: {}\n", .{ e, id });
 }
-fn serverThread3(client: std.net.Server.Connection, id: usize, state: *State) !void {
+fn serverThread3(client: std.Io.net.Stream, id: usize, state: *State) !void {
     defer {
         std.debug.print("client disconnect {}\n", .{id});
 
         if (!state.shutdown.load(.monotonic)) {
-            state.mutex.lock();
+            state.mutex.lock(state.io) catch unreachable;
             const index: usize = blk: for (0..state.clients.items.len) |i| {
                 if (state.clients.items[i].id == id) {
                     break :blk i;
                 }
             } else unreachable;
             _ = state.clients.swapRemove(index);
-            client.stream.close();
-            state.mutex.unlock();
+            client.close(state.io);
+            state.mutex.unlock(state.io);
         }
     }
 
     var http_in_buffer: [1024 * 8]u8 = undefined;
     var http_out_buffer: [1024 * 32]u8 = undefined;
-    var http_writer = client.stream.writer(&http_out_buffer);
-    var http_reader = client.stream.reader(&http_in_buffer);
+    var http_writer = client.writer(state.io, &http_out_buffer);
+    var http_reader = client.reader(state.io, &http_in_buffer);
 
-    var http_server = std.http.Server.init(http_reader.interface(), &http_writer.interface);
+    var http_server = std.http.Server.init(&http_reader.interface, &http_writer.interface);
     while (true) {
         var request = try http_server.receiveHead();
 
@@ -286,8 +290,8 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     std.debug.print("recieved POST\n", .{});
     var buffer: [1024]u8 = undefined;
     const body_reader = request.server.reader.bodyReader(&buffer, .none, request.head.content_length);
-    const body = try body_reader.allocRemaining(state.alloc, .limited(1024 * 1024));
-    defer state.alloc.free(body);
+    const body = try body_reader.allocRemaining(state.gpa, .limited(1024 * 1024));
+    defer state.gpa.free(body);
 
     std.debug.print("{s}\n", .{body});
 
@@ -301,25 +305,25 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     const get_path = body_iter.next() orelse return error.InvalidPost;
     const location = decodeElementLocation(&body_iter) orelse return error.invalidPost;
 
-    const file_in, const path = findHtml(state.alloc, state.site_dir.?, get_path[1..]) catch |e| switch (e) {
+    const file_in, const path = findHtml(state.io, state.gpa, state.site_dir.?, get_path[1..]) catch |e| switch (e) {
         error.NotFound => return error.InvalidPost,
         error.UnsafePath => return error.InvalidPost,
         error.OutOfMemory => return e,
     };
-    defer state.alloc.free(path);
+    defer state.gpa.free(path);
 
     const file_contents = blk: {
-        defer file_in.close();
-        var reader = file_in.reader(&.{});
-        break :blk try reader.interface.allocRemaining(state.alloc, .limited(1024 * 1024 * 64));
+        defer file_in.close(state.io);
+        var reader = file_in.reader(state.io, &.{});
+        break :blk try reader.interface.allocRemaining(state.gpa, .limited(1024 * 1024 * 64));
     };
-    defer state.alloc.free(file_contents);
+    defer state.gpa.free(file_contents);
 
-    const file = try std.fs.cwd().createFile(path, .{});
-    defer file.close();
+    const file = try std.Io.Dir.cwd().createFile(state.io, path, .{});
+    defer file.close(state.io);
 
     // body_reader is no longer being used; buffer is safe to overwrite
-    var writer = file.writer(&buffer);
+    var writer = file.writer(state.io, &buffer);
 
     if (std.mem.eql(u8, command, "add-element")) {
         const html_start = body_iter.index orelse return error.InvalidPost;
@@ -739,7 +743,7 @@ fn leadingSpaces(contents: []const u8, index: usize) usize {
     return spaces_end - line_start;
 }
 
-fn findHtml(alloc: std.mem.Allocator, site_dir: []const u8, relative: []const u8) error{ UnsafePath, NotFound, OutOfMemory }!struct { std.fs.File, []const u8 } {
+fn findHtml(io: std.Io, gpa: std.mem.Allocator, site_dir: []const u8, relative: []const u8) error{ UnsafePath, NotFound, OutOfMemory }!struct { std.Io.File, []const u8 } {
     if (hasDirectoryTraversal(relative)) {
         return error.UnsafePath;
     }
@@ -751,19 +755,19 @@ fn findHtml(alloc: std.mem.Allocator, site_dir: []const u8, relative: []const u8
             break :blk ".html";
         break :blk "";
     };
-    var path = try std.mem.join(alloc, "", &.{ site_dir, "/", relative, suffix });
-    errdefer alloc.free(path);
+    var path = try std.mem.join(gpa, "", &.{ site_dir, "/", relative, suffix });
+    errdefer gpa.free(path);
 
-    const file = std.fs.cwd().openFile(path, .{}) catch |e| blk1: {
+    const file = std.Io.Dir.cwd().openFile(io, path, .{}) catch |e| blk1: {
         if (relative.len == 0 or relative[relative.len - 1] == '/') {
             std.debug.print("404 not found ({t}) {s}\n", .{ e, path });
 
             return error.NotFound;
         }
-        alloc.free(path);
-        path = try std.mem.join(alloc, "", &.{ site_dir, "/", relative, "/index.html" });
+        gpa.free(path);
+        path = try std.mem.join(gpa, "", &.{ site_dir, "/", relative, "/index.html" });
 
-        break :blk1 std.fs.cwd().openFile(path, .{}) catch |e1| {
+        break :blk1 std.Io.Dir.cwd().openFile(io, path, .{}) catch |e1| {
             std.debug.print("404 not found ({t}, {t}) {s}\n", .{ e, e1, path });
 
             return error.NotFound;
@@ -782,7 +786,7 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
     }
 
     const page = request.head.target[1..]; // ignore leading `/`
-    const file, const path = findHtml(state.alloc, state.site_dir.?, page) catch |e| switch (e) {
+    const file, const path = findHtml(state.io, state.gpa, state.site_dir.?, page) catch |e| switch (e) {
         error.UnsafePath => {
             std.debug.print("not sending; path failed hasDirectoryTraversal: {s}\n", .{page});
             try request.respond("404 not found", .{ .status = .not_found });
@@ -797,14 +801,14 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
             return e;
         },
     };
-    defer file.close();
-    defer state.alloc.free(path);
+    defer file.close(state.io);
+    defer state.gpa.free(path);
 
     std.debug.print("sending {s}\n", .{path});
-    var reader = file.reader(&.{});
+    var reader = file.reader(state.io, &.{});
     // no file should be >64MB
-    const file_contents = try reader.interface.allocRemaining(state.alloc, .limited(1024 * 1024 * 64));
-    defer state.alloc.free(file_contents);
+    const file_contents = try reader.interface.allocRemaining(state.gpa, .limited(1024 * 1024 * 64));
+    defer state.gpa.free(file_contents);
 
     const extension = std.fs.path.extension(path);
     const mime = blk: {
@@ -840,8 +844,8 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
             \\    <link rel="stylesheet" href="/editor.css">
             \\
         );
-        const response = try std.mem.join(state.alloc, "", &.{ file_contents[0..index], append, file_contents[index..] });
-        defer state.alloc.free(response);
+        const response = try std.mem.join(state.gpa, "", &.{ file_contents[0..index], append, file_contents[index..] });
+        defer state.gpa.free(response);
         try request.respond(response, .{
             .extra_headers = &.{
                 .{
@@ -955,8 +959,8 @@ fn isWindowsReservedName(name: []const u8) bool {
     return false;
 }
 
-fn retrieveBackups(context: Webview.BindContext, alloc: std.mem.Allocator) void {
-    const listing = retrieveBackups2(alloc) catch |e| {
+fn retrieveBackups(context: Webview.BindContext, io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map) void {
+    const listing = retrieveBackups2(io, gpa, environ_map) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("double error: {t}, {t}", .{ e, e2 });
         };
@@ -964,36 +968,36 @@ fn retrieveBackups(context: Webview.BindContext, alloc: std.mem.Allocator) void 
     };
     defer {
         for (listing) |entry| {
-            alloc.free(entry);
+            gpa.free(entry);
         }
-        alloc.free(listing);
+        gpa.free(listing);
     }
     context.returnValue(listing) catch |e| {
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn retrieveBackups2(alloc: std.mem.Allocator) ![]const []const u8 {
-    const generic_data_folder = (known_folders.open(alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
-    const backups_folder = generic_data_folder.makeOpenPath("montecito-site-backups", .{ .iterate = true }) catch return error.FailedToOpenBackupsFolder;
+fn retrieveBackups2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map) ![]const []const u8 {
+    const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    const backups_folder = generic_data_folder.createDirPathOpen(io, "montecito-site-backups", .{ .open_options = .{ .iterate = true } }) catch return error.FailedToOpenBackupsFolder;
     var iter = backups_folder.iterate();
 
     var listing: std.ArrayList([]const u8) = .empty;
-    defer listing.deinit(alloc);
+    defer listing.deinit(gpa);
     errdefer {
         for (listing.items) |entry| {
-            alloc.free(entry);
+            gpa.free(entry);
         }
     }
 
-    while (try iter.next()) |backup| {
+    while (try iter.next(io)) |backup| {
         if (backup.kind != .directory) {
             continue;
         }
         if (!std.mem.startsWith(u8, backup.name, "backup-")) {
             continue;
         }
-        try listing.ensureUnusedCapacity(alloc, 1);
-        listing.appendAssumeCapacity(try alloc.dupe(u8, backup.name));
+        try listing.ensureUnusedCapacity(gpa, 1);
+        listing.appendAssumeCapacity(try gpa.dupe(u8, backup.name));
     }
 
     std.mem.sortUnstable([]const u8, listing.items, {}, struct {
@@ -1003,7 +1007,7 @@ fn retrieveBackups2(alloc: std.mem.Allocator) ![]const []const u8 {
         }
     }.inner);
 
-    return listing.toOwnedSlice(alloc);
+    return listing.toOwnedSlice(gpa);
 }
 
 fn makeBackup(context: Webview.BindContext, state: *State) void {
@@ -1026,14 +1030,14 @@ fn makeBackup(context: Webview.BindContext, state: *State) void {
     };
 }
 fn makeBackup2(state: *State) !void {
-    const time = std.time.timestamp();
-    const seconds: std.time.epoch.EpochSeconds = .{ .secs = @abs(time) };
+    const time = std.Io.Timestamp.now(state.io, .real);
+    const seconds: std.time.epoch.EpochSeconds = .{ .secs = @abs(time.toSeconds()) };
     const day_seconds = seconds.getDaySeconds();
     const epoch_day = seconds.getEpochDay();
     const year_day = epoch_day.calculateYearDay();
     const month_day = year_day.calculateMonthDay();
 
-    var name: std.Io.Writer.Allocating = .init(state.alloc);
+    var name: std.Io.Writer.Allocating = .init(state.gpa);
     defer name.deinit();
 
     try name.writer.print("backup-{}-{:0>2}-{:0>2}T{:0>2}.{:0>2}.{:0>2}Z", .{
@@ -1044,16 +1048,16 @@ fn makeBackup2(state: *State) !void {
         day_seconds.getMinutesIntoHour(),
         day_seconds.getSecondsIntoMinute(),
     });
-    var source_dir = try std.fs.cwd().openDir(state.site_dir.?, .{ .iterate = true });
-    defer source_dir.close();
+    var source_dir = try std.Io.Dir.cwd().openDir(state.io, state.site_dir.?, .{ .iterate = true });
+    defer source_dir.close(state.io);
 
-    const generic_data_folder = (known_folders.open(state.alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
-    const backups_folder = generic_data_folder.openDir("montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
-    try copyDirectory(state.alloc, source_dir, backups_folder, name.written());
+    const generic_data_folder = (known_folders.open(state.io, state.gpa, state.environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    const backups_folder = generic_data_folder.openDir(state.io, "montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
+    try copyDirectory(state.io, state.gpa, source_dir, backups_folder, name.written());
 }
 
-fn restoreBackup(context: Webview.BindContext, name: []const u8) void {
-    restoreBackup2(context.alloc, name) catch |e| {
+fn restoreBackup(context: Webview.BindContext, name: []const u8, state: *State) void {
+    restoreBackup2(state.io, state.gpa, state.environ_map, name) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("double error: {t}, {t}", .{ e, e2 });
         };
@@ -1064,19 +1068,19 @@ fn restoreBackup(context: Webview.BindContext, name: []const u8) void {
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn restoreBackup2(alloc: std.mem.Allocator, name: []const u8) !void {
-    const generic_data_folder = (known_folders.open(alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
-    const backups_folder = generic_data_folder.openDir("montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
+fn restoreBackup2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map, name: []const u8) !void {
+    const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    const backups_folder = generic_data_folder.openDir(io, "montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
 
-    const backup = try backups_folder.openDir(name, .{ .iterate = true });
+    const backup = try backups_folder.openDir(io, name, .{ .iterate = true });
 
-    try backups_folder.deleteTree("master-copy-temp");
-    try backups_folder.rename("master-copy", "master-copy-temp");
-    try copyDirectory(alloc, backup, backups_folder, "master-copy");
+    try backups_folder.deleteTree(io, "master-copy-temp");
+    try backups_folder.rename("master-copy", backups_folder, "master-copy-temp", io);
+    try copyDirectory(io, gpa, backup, backups_folder, "master-copy");
 }
 
-fn deleteBackup(context: Webview.BindContext, name: []const u8) void {
-    deleteBackup2(context.alloc, name) catch |e| {
+fn deleteBackup(context: Webview.BindContext, name: []const u8, state: *State) void {
+    deleteBackup2(state.io, state.gpa, state.environ_map, name) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("double error: {t}, {t}", .{ e, e2 });
         };
@@ -1087,15 +1091,15 @@ fn deleteBackup(context: Webview.BindContext, name: []const u8) void {
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn deleteBackup2(alloc: std.mem.Allocator, name: []const u8) !void {
-    const generic_data_folder = (known_folders.open(alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
-    const backups_folder = generic_data_folder.openDir("montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
+fn deleteBackup2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map, name: []const u8) !void {
+    const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    const backups_folder = generic_data_folder.openDir(io, "montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
 
-    try backups_folder.deleteTree(name);
+    try backups_folder.deleteTree(io, name);
 }
 
-fn renameBackup(context: Webview.BindContext, args: struct { old_name: []const u8, new_name: []const u8 }) void {
-    renameBackup2(context.alloc, args.old_name, args.new_name) catch |e| {
+fn renameBackup(context: Webview.BindContext, args: struct { old_name: []const u8, new_name: []const u8 }, state: *State) void {
+    renameBackup2(state.io, state.gpa, state.environ_map, args.old_name, args.new_name) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("double error: {t}, {t}", .{ e, e2 });
         };
@@ -1106,17 +1110,17 @@ fn renameBackup(context: Webview.BindContext, args: struct { old_name: []const u
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn renameBackup2(alloc: std.mem.Allocator, old_name: []const u8, new_name: []const u8) !void {
-    const generic_data_folder = (known_folders.open(alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
-    const backups_folder = generic_data_folder.openDir("montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
+fn renameBackup2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map, old_name: []const u8, new_name: []const u8) !void {
+    const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    const backups_folder = generic_data_folder.openDir(io, "montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
 
-    const actual_new_name = try std.mem.join(alloc, "", &.{ "backup-", new_name });
-    defer alloc.free(actual_new_name);
-    try backups_folder.rename(old_name, actual_new_name);
+    const actual_new_name = try std.mem.join(gpa, "", &.{ "backup-", new_name });
+    defer gpa.free(actual_new_name);
+    try backups_folder.rename(old_name, backups_folder, actual_new_name, io);
 }
 
-fn importWebsiteCopy(context: Webview.BindContext) void {
-    const cancelled = importWebsiteCopy2(context.alloc) catch |e| {
+fn importWebsiteCopy(context: Webview.BindContext, state: *State) void {
+    const cancelled = importWebsiteCopy2(state.io, state.gpa, state.environ_map) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("double error: {t}, {t}", .{ e, e2 });
         };
@@ -1127,35 +1131,35 @@ fn importWebsiteCopy(context: Webview.BindContext) void {
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn importWebsiteCopy2(alloc: std.mem.Allocator) !bool {
-    const self_dir: ?[]const u8 = std.fs.selfExeDirPathAlloc(alloc) catch null;
-    defer if (self_dir) |d| alloc.free(d);
+fn importWebsiteCopy2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map) !bool {
+    const self_dir: ?[]const u8 = std.process.executableDirPathAlloc(io, gpa) catch null;
+    defer if (self_dir) |d| gpa.free(d);
 
     const default_dir: ?[:0]const u8 = if (self_dir) |d| blk: {
-        var buf = try alloc.alloc(u8, d.len+1);
+        var buf = try gpa.alloc(u8, d.len+1);
         @memcpy(buf[0..d.len], d);
         buf[buf.len-1] = 0;
         break :blk buf[0..buf.len-1 :0];
     } else null;
-    defer if (default_dir) |d| alloc.free(d);
+    defer if (default_dir) |d| gpa.free(d);
 
-    const picked = try filesystem_dialog.openDirectoryPicker(alloc, default_dir) orelse return true;
-    defer alloc.free(picked);
+    const picked = try filesystem_dialog.openDirectoryPicker(gpa, default_dir) orelse return true;
+    defer gpa.free(picked);
 
-    const generic_data_folder = (known_folders.open(alloc, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
-    const backups_folder = generic_data_folder.openDir("montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
+    const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    const backups_folder = generic_data_folder.openDir(io, "montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
 
-    var source = try std.fs.cwd().openDir(picked, .{ .iterate = true });
-    defer source.close();
+    var source = try std.Io.Dir.cwd().openDir(io, picked, .{ .iterate = true });
+    defer source.close(io);
 
     // move master-copy into backup
-    try backups_folder.deleteTree("backup-master-copy-pre-import");
-    backups_folder.rename("master-copy", "backup-master-copy-pre-import") catch |e| switch (e) {
+    try backups_folder.deleteTree(io, "backup-master-copy-pre-import");
+    backups_folder.rename("master-copy", backups_folder, "backup-master-copy-pre-import", io) catch |e| switch (e) {
         error.FileNotFound => {}, // master copy does not exist; not an error
         else => return e,
     };
 
-    try copyDirectory(alloc, source, backups_folder, "master-copy");
+    try copyDirectory(io, gpa, source, backups_folder, "master-copy");
 
     return false;
 }
