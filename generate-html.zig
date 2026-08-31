@@ -1,21 +1,21 @@
 const std = @import("std");
 
-const TemplateMap = std.StringHashMap([]const u8);
+pub const TemplateMap = std.StringHashMap([]const u8);
 
-const ExpansionError = error{ UnterminatedExpansion, UnknownExpansion, WriteFailed };
+pub const ExpansionError = error{ UnterminatedExpansion, UnknownExpansion, WriteFailed };
 
-const ReplacementOptions = struct {
+pub const ReplacementOptions = struct {
     writer: *std.Io.Writer,
     template_map: TemplateMap,
 };
-const Directive = enum {
+pub const Directive = enum {
     base64,
 };
 const directive_map = std.StaticStringMap(Directive).initComptime(.{
     .{ "base64", .base64 },
 });
 
-fn expand(id: []const u8, options: ReplacementOptions, directive: ?Directive) ExpansionError!bool {
+pub fn expand(id: []const u8, options: ReplacementOptions, directive: ?Directive) ExpansionError!bool {
     const template = options.template_map.get(id) orelse {
         std.debug.print("Template not found: {s}\n", .{id});
         return false;
@@ -32,7 +32,7 @@ fn expand(id: []const u8, options: ReplacementOptions, directive: ?Directive) Ex
     return true;
 }
 
-fn performReplacementStream(original: []const u8, options: ReplacementOptions) ExpansionError!void {
+pub fn performReplacementStream(original: []const u8, options: ReplacementOptions) ExpansionError!void {
     var buffer: []const u8 = original;
     while (std.mem.indexOf(u8, buffer, "{{")) |start_index| {
         const end_marker_index = std.mem.indexOf(u8, buffer, "}}") orelse return error.UnterminatedExpansion;
@@ -56,14 +56,7 @@ fn performReplacementStream(original: []const u8, options: ReplacementOptions) E
     options.writer.flush() catch return error.WriteFailed;
 }
 
-fn printHelp() void {
-    const text = (
-        \\Usage: generate-html <input-directory> <output-directory> [template-directories...]
-        \\
-    );
-    std.debug.print(text, .{});
-}
-fn freeTemplateMap(gpa: std.mem.Allocator, map: TemplateMap) void {
+pub fn freeTemplateMap(gpa: std.mem.Allocator, map: TemplateMap) void {
     var m = map;
     var iter = m.iterator();
     while (iter.next()) |e| {
@@ -72,7 +65,7 @@ fn freeTemplateMap(gpa: std.mem.Allocator, map: TemplateMap) void {
     }
     m.deinit();
 }
-fn generateTemplateMap(io: std.Io, gpa: std.mem.Allocator, paths: []const []const u8) !TemplateMap {
+pub fn generateTemplateMap(io: std.Io, gpa: std.mem.Allocator, paths: []const []const u8) !TemplateMap {
     var map = TemplateMap.init(gpa);
     errdefer freeTemplateMap(gpa, map);
 
@@ -117,74 +110,4 @@ fn generateTemplateMap(io: std.Io, gpa: std.mem.Allocator, paths: []const []cons
     }
 
     return map;
-}
-pub fn main(init: std.process.Init) !void {
-    const gpa = init.gpa;
-    const io = init.io;
-
-    var args = try init.minimal.args.iterateAllocator(init.gpa);
-    defer args.deinit();
-
-    // skip executable path
-    if (!args.skip()) {
-        printHelp();
-        return error.InvalidArguments;
-    }
-
-    const input_path = args.next() orelse {
-        printHelp();
-        return error.NoInputDirectory;
-    };
-    const output_path = args.next() orelse {
-        printHelp();
-        return error.NoOutputDirectory;
-    };
-    var template_paths: std.ArrayList([]const u8) = .empty;
-    defer template_paths.deinit(gpa);
-    while (args.next()) |arg| {
-        try template_paths.append(gpa, arg);
-    }
-
-    var input_dir = try std.Io.Dir.cwd().openDir(io, input_path, .{ .iterate = true });
-    defer input_dir.close(io);
-
-    try std.Io.Dir.cwd().createDirPath(io, output_path);
-    var output_dir = try std.Io.Dir.cwd().openDir(io, output_path, .{});
-    defer output_dir.close(io);
-
-    const template_map = try generateTemplateMap(io, gpa, template_paths.items);
-    defer freeTemplateMap(gpa, template_map);
-
-    var walker = try input_dir.walk(gpa);
-    defer walker.deinit();
-
-    while (try walker.next(io)) |entry| {
-        if (entry.kind != .file or std.mem.containsAtLeast(u8, entry.path, 1, "template")) {
-            continue;
-        }
-
-        if (std.fs.path.dirname(entry.path)) |dir| {
-            try output_dir.createDirPath(io, dir);
-        }
-
-        if (!std.mem.endsWith(u8, entry.basename, ".html")) {
-            try entry.dir.copyFile(entry.basename, output_dir, entry.path, io, .{});
-            continue;
-        }
-        // no HTML files larger than 32 MiB
-        const size_cap = 1024 * 1024 * 32;
-        const file_contents = try entry.dir.readFileAlloc(io, entry.basename, gpa, .limited(size_cap));
-        defer gpa.free(file_contents);
-
-        const output_file = try output_dir.createFile(io, entry.path, .{});
-        defer output_file.close(io);
-
-        var buffer: [4096]u8 = undefined;
-        var writer = output_file.writer(io, &buffer);
-
-        try performReplacementStream(file_contents, .{
-            .writer = &writer.interface,
-            .template_map = template_map,
-        });
-    }
 }

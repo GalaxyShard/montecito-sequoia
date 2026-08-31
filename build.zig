@@ -32,7 +32,7 @@ pub fn build(b: *std.Build) !void {
         .root_module = b.createModule(.{
             .target = b.resolveTargetQuery(.{}),
             .optimize = .debug,
-            .root_source_file = b.path("generate-html.zig"),
+            .root_source_file = b.path("generate-html-build.zig"),
         }),
     });
 
