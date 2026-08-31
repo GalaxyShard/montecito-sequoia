@@ -31,13 +31,13 @@ pub fn build(b: *std.Build) !void {
         .name = "generate-html",
         .root_module = b.createModule(.{
             .target = b.resolveTargetQuery(.{}),
-            .optimize = .Debug,
+            .optimize = .debug,
             .root_source_file = b.path("generate-html.zig"),
         }),
     });
 
     if (pnpm_enabled) {
-        const pnpm = b.findProgram(&.{"pnpm"}, &.{}) catch {
+        const pnpm = b.findProgram(.{.names=&.{"pnpm"}}) orelse {
             @panic("pnpm not found in PATH; pnpm is required to perform a full build");
         };
         const run_pnpm = b.addSystemCommand(&.{ pnpm, "run", "build" });

@@ -12,7 +12,7 @@ const State = struct {
     // main thread deinitializes, server thread appends, server-client threads remove
 
     io: std.Io,
-    environ_map: std.process.Environ.Map,
+    environ_map: *const std.process.Environ.Map,
     mutex: std.Io.Mutex = .init,
     clients: std.ArrayList(struct { stream: std.Io.net.Stream, thread: std.Thread, id: usize }) = .empty,
 
@@ -72,7 +72,7 @@ pub fn main(init: std.process.Init) !void {
 
     try filesystem_dialog.init();
 
-    const webview = Webview.init(builtin.mode == .Debug, null) orelse return error.FailedToCreateWebview;
+    const webview = Webview.init(builtin.mode == .debug, null) orelse return error.FailedToCreateWebview;
     defer webview.destroy();
 
     try webview.setTitle("Montecito Site Editor");
@@ -80,7 +80,7 @@ pub fn main(init: std.process.Init) !void {
     try webview.setHtml(app_html);
 
     const site_dir: ?[]const u8 = blk: {
-        const generic_data_path = (known_folders.getPath(io, gpa, init.environ_map.*, .data) catch break :blk null) orelse break :blk null;
+        const generic_data_path = (known_folders.getPath(io, gpa, init.environ_map, .data) catch break :blk null) orelse break :blk null;
         defer gpa.free(generic_data_path);
 
         var generic_data_folder = std.Io.Dir.cwd().createDirPathOpen(io, generic_data_path, .{}) catch break :blk null;
@@ -107,7 +107,7 @@ pub fn main(init: std.process.Init) !void {
 
     var state: State = .{
         .io = io,
-        .environ_map = init.environ_map.*,
+        .environ_map = init.environ_map,
         .thread = null,
         .tcp_server = undefined,
         .site_mode = undefined,
@@ -123,10 +123,10 @@ pub fn main(init: std.process.Init) !void {
     const stop_hosting = try webview.bind(gpa, "backendStopHosting", &stopHosting, .{&state});
     defer stop_hosting.deinit();
 
-    const copy_to_clipboard = try webview.bind(gpa, "backendCopyToClipboard", &copyToClipboard, .{&state});
+    const copy_to_clipboard = try webview.bind(gpa, "backendCopyToClipboard", &copyToClipboard, .{});
     defer copy_to_clipboard.deinit();
 
-    const retrieve_backups = try webview.bind(gpa, "backendRetrieveBackups", &retrieveBackups, .{io, gpa, init.environ_map.*});
+    const retrieve_backups = try webview.bind(gpa, "backendRetrieveBackups", &retrieveBackups, .{io, gpa, init.environ_map});
     defer retrieve_backups.deinit();
 
     const make_backup = try webview.bind(gpa, "backendMakeBackup", &makeBackup, .{&state});
@@ -147,8 +147,8 @@ pub fn main(init: std.process.Init) !void {
     try webview.run();
 }
 
-fn copyToClipboard(_: Webview.BindContext, text: []const u8, state: *State) void {
-    clipboard.write(state.io, state.environ_map, text) catch |e| std.debug.print("error copying to clipboard: {t}\n", .{e});
+fn copyToClipboard(_: Webview.BindContext, text: []const u8) void {
+    clipboard.write(text) catch |e| std.debug.print("error copying to clipboard: {t}\n", .{e});
 }
 
 fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) void {
@@ -875,7 +875,7 @@ fn stopHosting(context: Webview.BindContext, state: *State) void {
     state.thread.?.join();
     state.thread = null;
 
-    context.returnValue(void{}) catch |e| {
+    context.returnValue({}) catch |e| {
         std.debug.panic("unrecoverable error: {t}\n", .{e});
     };
 }
@@ -959,7 +959,7 @@ fn isWindowsReservedName(name: []const u8) bool {
     return false;
 }
 
-fn retrieveBackups(context: Webview.BindContext, io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map) void {
+fn retrieveBackups(context: Webview.BindContext, io: std.Io, gpa: std.mem.Allocator, environ_map: *const std.process.Environ.Map) void {
     const listing = retrieveBackups2(io, gpa, environ_map) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("double error: {t}, {t}", .{ e, e2 });
@@ -976,7 +976,7 @@ fn retrieveBackups(context: Webview.BindContext, io: std.Io, gpa: std.mem.Alloca
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn retrieveBackups2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map) ![]const []const u8 {
+fn retrieveBackups2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const std.process.Environ.Map) ![]const []const u8 {
     const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
     const backups_folder = generic_data_folder.createDirPathOpen(io, "montecito-site-backups", .{ .open_options = .{ .iterate = true } }) catch return error.FailedToOpenBackupsFolder;
     var iter = backups_folder.iterate();
@@ -1025,7 +1025,7 @@ fn makeBackup(context: Webview.BindContext, state: *State) void {
         return;
     };
 
-    context.returnValue(void{}) catch |e| {
+    context.returnValue({}) catch |e| {
         std.debug.panic("error returning: {t}", .{e});
     };
 }
@@ -1064,11 +1064,11 @@ fn restoreBackup(context: Webview.BindContext, name: []const u8, state: *State) 
         return;
     };
 
-    context.returnValue(void{}) catch |e| {
+    context.returnValue({}) catch |e| {
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn restoreBackup2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map, name: []const u8) !void {
+fn restoreBackup2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const std.process.Environ.Map, name: []const u8) !void {
     const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
     const backups_folder = generic_data_folder.openDir(io, "montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
 
@@ -1087,11 +1087,11 @@ fn deleteBackup(context: Webview.BindContext, name: []const u8, state: *State) v
         return;
     };
 
-    context.returnValue(void{}) catch |e| {
+    context.returnValue({}) catch |e| {
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn deleteBackup2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map, name: []const u8) !void {
+fn deleteBackup2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const std.process.Environ.Map, name: []const u8) !void {
     const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
     const backups_folder = generic_data_folder.openDir(io, "montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
 
@@ -1106,11 +1106,11 @@ fn renameBackup(context: Webview.BindContext, args: struct { old_name: []const u
         return;
     };
 
-    context.returnValue(void{}) catch |e| {
+    context.returnValue({}) catch |e| {
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn renameBackup2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map, old_name: []const u8, new_name: []const u8) !void {
+fn renameBackup2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const std.process.Environ.Map, old_name: []const u8, new_name: []const u8) !void {
     const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
     const backups_folder = generic_data_folder.openDir(io, "montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
 
@@ -1131,7 +1131,7 @@ fn importWebsiteCopy(context: Webview.BindContext, state: *State) void {
         std.debug.panic("error returning: {t}", .{e});
     };
 }
-fn importWebsiteCopy2(io: std.Io, gpa: std.mem.Allocator, environ_map: std.process.Environ.Map) !bool {
+fn importWebsiteCopy2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const std.process.Environ.Map) !bool {
     const self_dir: ?[]const u8 = std.process.executableDirPathAlloc(io, gpa) catch null;
     defer if (self_dir) |d| gpa.free(d);
 

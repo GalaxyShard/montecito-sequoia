@@ -7,20 +7,20 @@
     .dependencies = .{
         // zig fetch --save git+https://codeberg.org/GalaxyShard/zig-webview
         .webview = .{
-            .url = "git+https://codeberg.org/GalaxyShard/zig-webview#026882c07bdac4597cac1f4a8e74e038a62ecab1",
-            .hash = "webview-0.0.0-XQYxC80RIgD_F0z6P9ZxCfIlrYJjbjhvl8udP6JQ3xN9",
+            .url = "git+https://codeberg.org/GalaxyShard/zig-webview#0b08e7a82642ca57a666021a33de6c18192af373",
+            .hash = "webview-0.0.0-XQYxC_4RIgA5pE7KCY_Y_MA2vFH-p6eJ8HWt1fcqE-vk",
         },
 
         // zig fetch --save git+https://github.com/dgv/clipboard
         .clipboard = .{
-            .url = "git+https://github.com/dgv/clipboard#0ba2e06f3ade58237a45c4f3321884dee2aba775",
-            .hash = "clipboard-0.1.0-4y-6fXgjAAAG9lcF33e0cBPUg-ynG3L6vvPYgei-gokt",
+            .url = "git+https://codeberg.org/GalaxyShard/clipboard-zig.git#78c711fc9e1ce202b3aca00b4424f5e4c2e14451",
+            .hash = "clipboard-0.1.0-4y-6feAzAADTc4fn3SPtY31AALGuMx_2QYW_FJ2giQCS",
         },
 
         // zig fetch --save git+https://github.com/ziglibs/known-folders.git
         .known_folders = .{
-            .url = "git+https://github.com/ziglibs/known-folders.git#d6d03830968cca6b7b9f24fd97ee348346a6905d",
-            .hash = "known_folders-0.0.0-Fy-PJk3KAACzUg2us_0JvQQmod1ZA8jBt7MuoKCihq88",
+            .url = "git+https://github.com/ziglibs/known-folders.git#6da0d0c41b78b9ed2d34fa364fcb81b5ebece6c4",
+            .hash = "known_folders-0.0.0-Fy-PJiDLAAB98m3uYUzatrTb2mO2fpvwx2zpSroEtfbO",
         },
 
         // zig fetch --save git+https://codeberg.org/GalaxyShard/filesystem-dialog-zig
