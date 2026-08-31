@@ -49,7 +49,7 @@ pub fn main(init: std.process.Init) !void {
     defer walker.deinit();
 
     while (try walker.next(io)) |entry| {
-        if (entry.kind != .file or std.mem.containsAtLeast(u8, entry.path, 1, "template")) {
+        if (entry.kind != .file) {
             continue;
         }
 
