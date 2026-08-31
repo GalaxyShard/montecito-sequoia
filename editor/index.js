@@ -49,6 +49,7 @@ let backupsList = document.getElementById("backups-list");
 let backupNameInput = document.getElementById("backup-name-input");
 
 let selectedBackupEntry = null;
+let isRefreshingBackups = false;
 
 function setPage(page) {
     frontPage.hidden = true;
@@ -92,12 +93,12 @@ manageBackups.addEventListener("click", () => {
 });
 function refreshBackupsList() {
     selectedBackupEntry = null;
-    while (backupsList.firstChild) {
-        backupsList.removeChild(backupsList.lastChild);
-    }
+    isRefreshingBackups = true;
+
     backupsStatus.textContent = "Loading backups...";
 
     window.backendRetrieveBackups().then(listing => {
+        let newNodes = [];
         for (let entry of listing) {
             let container = document.createElement("button");
             container.classList.add("backup-entry");
@@ -106,6 +107,9 @@ function refreshBackupsList() {
             container.dataset.entryName = entry;
 
             container.addEventListener("click", () => {
+                if (isRefreshingBackups) {
+                    return;
+                }
                 if (selectedBackupEntry !== null) {
                     selectedBackupEntry.classList.remove("selected");
                 }
@@ -117,12 +121,14 @@ function refreshBackupsList() {
                     selectedBackupEntry.classList.add("selected");
                 }
             });
-            backupsList.append(container);
+            newNodes.push(container);
         }
+        backupsList.replaceChildren(...newNodes);
         backupsStatus.textContent = "Loaded backups";
     }).catch(e => {
         backupsStatus.textContent = "Failed to load backups: " + e;
     });
+    isRefreshingBackups = false;
 }
 
 makeBackup.addEventListener("click", () => {
