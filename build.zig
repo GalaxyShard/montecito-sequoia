@@ -37,7 +37,7 @@ pub fn build(b: *std.Build) !void {
     });
 
     if (pnpm_enabled) {
-        const pnpm = b.findProgram(.{.names=&.{"pnpm"}}) orelse {
+        const pnpm = b.findProgram(.{ .names = &.{"pnpm"} }) orelse {
             @panic("pnpm not found in PATH; pnpm is required to perform a full build");
         };
         const run_pnpm = b.addSystemCommand(&.{ pnpm, "run", "build" });

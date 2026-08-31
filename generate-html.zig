@@ -173,7 +173,7 @@ pub fn main(init: std.process.Init) !void {
         }
         // no HTML files larger than 32 MiB
         const size_cap = 1024 * 1024 * 32;
-        const file_contents = try entry.dir.readFileAlloc(io,entry.basename, gpa, .limited(size_cap));
+        const file_contents = try entry.dir.readFileAlloc(io, entry.basename, gpa, .limited(size_cap));
         defer gpa.free(file_contents);
 
         const output_file = try output_dir.createFile(io, entry.path, .{});

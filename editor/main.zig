@@ -86,9 +86,8 @@ pub fn main(init: std.process.Init) !void {
         var generic_data_folder = std.Io.Dir.cwd().createDirPathOpen(io, generic_data_path, .{}) catch break :blk null;
         defer generic_data_folder.close(io);
 
-        generic_data_folder.access(io, "montecito-site-backups/master-copy", .{ .read=true, .write=true }) catch |e| switch (e) {
+        generic_data_folder.access(io, "montecito-site-backups/master-copy", .{ .read = true, .write = true }) catch |e| switch (e) {
             error.FileNotFound => {
-
                 const self_dir = std.process.executableDirPathAlloc(io, gpa) catch break :blk null;
                 defer gpa.free(self_dir);
 
@@ -126,7 +125,7 @@ pub fn main(init: std.process.Init) !void {
     const copy_to_clipboard = try webview.bind(gpa, "backendCopyToClipboard", &copyToClipboard, .{});
     defer copy_to_clipboard.deinit();
 
-    const retrieve_backups = try webview.bind(gpa, "backendRetrieveBackups", &retrieveBackups, .{io, gpa, init.environ_map});
+    const retrieve_backups = try webview.bind(gpa, "backendRetrieveBackups", &retrieveBackups, .{ io, gpa, init.environ_map });
     defer retrieve_backups.deinit();
 
     const make_backup = try webview.bind(gpa, "backendMakeBackup", &makeBackup, .{&state});
@@ -1136,10 +1135,10 @@ fn importWebsiteCopy2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const st
     defer if (self_dir) |d| gpa.free(d);
 
     const default_dir: ?[:0]const u8 = if (self_dir) |d| blk: {
-        var buf = try gpa.alloc(u8, d.len+1);
+        var buf = try gpa.alloc(u8, d.len + 1);
         @memcpy(buf[0..d.len], d);
-        buf[buf.len-1] = 0;
-        break :blk buf[0..buf.len-1 :0];
+        buf[buf.len - 1] = 0;
+        break :blk buf[0 .. buf.len - 1 :0];
     } else null;
     defer if (default_dir) |d| gpa.free(d);
 
