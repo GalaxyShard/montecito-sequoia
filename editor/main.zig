@@ -70,6 +70,8 @@ pub fn main(init: std.process.Init) !void {
     const gpa = init.gpa;
     const io = init.io;
 
+    defer clipboard.deinit();
+
     try filesystem_dialog.init();
 
     const webview = Webview.init(builtin.mode == .debug, null) orelse return error.FailedToCreateWebview;
@@ -211,13 +213,9 @@ fn serverThread(state: *State) void {
             return;
         }
         const client = state.tcp_server.accept(state.io) catch |e| {
+            // after calling netShutdown, SocketNotListening is thrown, so this code path will run
             if (state.shutdown.load(.monotonic)) {
                 return;
-            }
-            if (e == error.WouldBlock) {
-                // sleep for 10 ms
-                std.Io.sleep(state.io, .fromMilliseconds(10), .real) catch unreachable;
-                continue;
             }
             std.debug.print("error accepting client: {t}\n", .{e});
             continue;
@@ -871,6 +869,7 @@ fn stopHosting(context: Webview.BindContext, state: *State) void {
     }
 
     state.shutdown.store(true, .monotonic);
+    state.io.vtable.netShutdown(state.io.userdata, state.tcp_server.socket.handle, .both) catch |e| std.debug.panic("{t}", .{e});
     state.thread.?.join();
     state.thread = null;
 
