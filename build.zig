@@ -44,13 +44,8 @@ pub fn build(b: *std.Build) !void {
         b.getInstallStep().dependOn(&run_pnpm.step);
     }
 
-    const generate_site = b.addRunArtifact(generate_html);
-    generate_site.addDirectoryArg(b.path("site"));
-    const output_site = generate_site.addOutputDirectoryArg("site-build");
-    generate_site.addDirectoryArg(b.path("site/template"));
-
     b.getInstallStep().dependOn(&b.addInstallDirectory(.{
-        .source_dir = output_site,
+        .source_dir = b.path("site"),
         .install_dir = .bin,
         .install_subdir = "site-build",
     }).step);
