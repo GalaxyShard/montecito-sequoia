@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const Webview = @import("Webview");
 const known_folders = @import("known-folders");
 const filesystem_dialog = @import("filesystem-dialog");
+const gen_html = @import("generate-html");
 
 const clipboard = @import("clipboard");
 
@@ -24,6 +25,7 @@ const State = struct {
 
     // used by server-client threads
     site_dir: ?[]const u8,
+    template_map: ?gen_html.TemplateMap,
 
     // used by all threads
     gpa: std.mem.Allocator,
@@ -114,6 +116,7 @@ pub fn main(init: std.process.Init) !void {
         .site_mode = undefined,
         .gpa = gpa,
         .site_dir = site_dir,
+        .template_map = null,
     };
     defer if (state.site_dir) |s| gpa.free(s);
     defer state.clients.deinit(state.gpa);
@@ -189,6 +192,11 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
 fn serverThread(state: *State) void {
     state.shutdown.store(false, .monotonic);
 
+    const template_dir = std.fs.path.join(state.gpa, &.{state.site_dir.?, "template"}) catch @panic("out of mem");
+    const template_map = gen_html.generateTemplateMap(state.io, state.gpa, &.{template_dir}) catch |e| std.debug.panic("{t}", .{e});
+    state.gpa.free(template_dir);
+    defer gen_html.freeTemplateMap(state.gpa, template_map);
+
     defer {
         std.debug.print("server shutdown\n", .{});
         state.mutex.lock(state.io) catch unreachable;
@@ -222,7 +230,7 @@ fn serverThread(state: *State) void {
         };
         std.debug.print("client: {}\n", .{id});
 
-        const thread = std.Thread.spawn(.{}, serverThread2, .{ client, id, state }) catch |e| std.debug.panic("{t}", .{e});
+        const thread = std.Thread.spawn(.{}, serverThread2, .{ client, id, state, template_map }) catch |e| std.debug.panic("{t}", .{e});
 
         state.mutex.lock(state.io) catch unreachable;
         state.clients.append(state.gpa, .{
@@ -238,10 +246,10 @@ fn serverThread(state: *State) void {
         id += 1;
     }
 }
-fn serverThread2(client: std.Io.net.Stream, id: usize, state: *State) void {
-    serverThread3(client, id, state) catch |e| std.debug.print("server error: {t}\n client id: {}\n", .{ e, id });
+fn serverThread2(client: std.Io.net.Stream, id: usize, state: *State, template_map: gen_html.TemplateMap) void {
+    serverThread3(client, id, state, template_map) catch |e| std.debug.print("server error: {t}\n client id: {}\n", .{ e, id });
 }
-fn serverThread3(client: std.Io.net.Stream, id: usize, state: *State) !void {
+fn serverThread3(client: std.Io.net.Stream, id: usize, state: *State, template_map: gen_html.TemplateMap) !void {
     defer {
         std.debug.print("client disconnect {}\n", .{id});
 
@@ -279,7 +287,7 @@ fn serverThread3(client: std.Io.net.Stream, id: usize, state: *State) !void {
             continue;
         }
 
-        try handleGet(&request, state);
+        try handleGet(&request, state, template_map);
     }
 }
 
@@ -774,7 +782,7 @@ fn findHtml(io: std.Io, gpa: std.mem.Allocator, site_dir: []const u8, relative: 
     return .{ file, path };
 }
 
-fn handleGet(request: *std.http.Server.Request, state: *State) !void {
+fn handleGet(request: *std.http.Server.Request, state: *State, template_map: gen_html.TemplateMap) !void {
     if (request.head.target.len == 0 or request.head.target[0] != '/') {
         std.debug.print("404: no leading '/'\n", .{});
         try request.respond("404 not found", .{ .status = .not_found });
@@ -830,8 +838,29 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
         return error.UnknownFileExtension;
     };
 
-    if (state.site_mode == .editor and std.mem.eql(u8, extension, ".html")) blk: {
-        const index_start = std.mem.indexOf(u8, file_contents, "</title>\n") orelse {
+    if (!std.mem.eql(u8, extension, ".html")) {
+        try request.respond(file_contents, .{
+            .extra_headers = &.{
+                .{
+                    .name = "Content-Type",
+                    .value = mime,
+                },
+            },
+        });
+        return;
+    }
+
+    var generated_html_allocating = std.Io.Writer.Allocating.init(state.gpa);
+    defer generated_html_allocating.deinit();
+    try gen_html.performReplacementStream(file_contents, .{
+        .writer = &generated_html_allocating.writer,
+        .template_map = template_map,
+    });
+    const generated_html = generated_html_allocating.written();
+
+
+    if (state.site_mode == .editor) blk: {
+        const index_start = std.mem.indexOf(u8, generated_html, "</title>\n") orelse {
             std.debug.print("unable to find end of title tag (cannot initialize editor)\n", .{});
             break :blk;
         };
@@ -841,7 +870,7 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
             \\    <link rel="stylesheet" href="/editor.css">
             \\
         );
-        const response = try std.mem.join(state.gpa, "", &.{ file_contents[0..index], append, file_contents[index..] });
+        const response = try std.mem.join(state.gpa, "", &.{ generated_html[0..index], append, generated_html[index..] });
         defer state.gpa.free(response);
         try request.respond(response, .{
             .extra_headers = &.{
@@ -852,7 +881,7 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
             },
         });
     } else {
-        try request.respond(file_contents, .{
+        try request.respond(generated_html, .{
             .extra_headers = &.{
                 .{
                     .name = "Content-Type",

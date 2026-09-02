@@ -27,13 +27,18 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
-    const generate_html = b.addExecutable(.{
+    const gen_html_exe = b.addExecutable(.{
         .name = "generate-html",
         .root_module = b.createModule(.{
             .target = b.resolveTargetQuery(.{}),
             .optimize = .debug,
             .root_source_file = b.path("generate-html-build.zig"),
         }),
+    });
+
+    const gen_html_mod = b.addModule("generate-html", .{
+        .root_source_file = b.path("generate-html.zig"),
+        .target = target,
     });
 
     if (pnpm_enabled) {
@@ -44,14 +49,9 @@ pub fn build(b: *std.Build) !void {
         b.getInstallStep().dependOn(&run_pnpm.step);
     }
 
-    const generate_site = b.addRunArtifact(generate_html);
-    generate_site.addDirectoryArg(b.path("site"));
-    const output_site = generate_site.addOutputDirectoryArg("site-build");
-    generate_site.addDirectoryArg(b.path("site/template"));
-
     b.getInstallStep().dependOn(&b.addInstallDirectory(.{
-        .source_dir = output_site,
         .install_dir = .bin,
+        .source_dir = b.path("site"),
         .install_subdir = "site-build",
     }).step);
 
@@ -75,7 +75,7 @@ pub fn build(b: *std.Build) !void {
         "quill.snow.css",
     ).step);
 
-    const generate_editor_app = b.addRunArtifact(generate_html);
+    const generate_editor_app = b.addRunArtifact(gen_html_exe);
 
     // TODO: remove this workaround
     // fixes changed files being used from cache
@@ -98,7 +98,7 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("editor/index.html"),
     });
 
-    b.installArtifact(generate_html);
+    b.installArtifact(gen_html_exe);
 
     const webview = b.dependency("webview", .{
         .target = target,
@@ -118,6 +118,7 @@ pub fn build(b: *std.Build) !void {
         e.root_module.addImport("Webview", webview.module("Webview"));
         e.root_module.addImport("known-folders", known_folders.module("known-folders"));
         e.root_module.addImport("filesystem-dialog", filesystem_dialog.module("filesystem-dialog"));
+        e.root_module.addImport("generate-html", gen_html_mod);
     }
 
     const run_editor = b.addRunArtifact(editor);
