@@ -397,7 +397,7 @@ function createAddElementDropdown(element) {
     insertAlert.textContent = "Info Alert";
     insertAlert.addEventListener("click", async _ => {
         let e = document.createElement("div");
-        e.classList.add("alert", "alert-info", "text-center", "px-5");
+        e.classList.add("alert", "alert-info");
         e.role = "alert";
         await finalizeAddition(e);
     });
@@ -409,7 +409,7 @@ function createAddElementDropdown(element) {
     insertWarning.textContent = "Warning Alert";
     insertWarning.addEventListener("click", async _ => {
         let e = document.createElement("div");
-        e.classList.add("alert", "alert-warning", "text-center", "px-5");
+        e.classList.add("alert", "alert-warning");
         e.role = "alert";
         await finalizeAddition(e);
     });

@@ -24,6 +24,11 @@ p { /* Undo Bootstrap styling */
     --bs-gutter-x:0;
 }
 
+.alert {
+    padding-left:3rem;
+    padding-right:3rem;
+    text-align:center;
+}
 .alert > p:first-child, li > p:first-child {
     margin-top:0;
 }
@@ -237,7 +242,7 @@ img-fitted {
 }
 img-fitted::before {
     display:block;
-    
+
     --inset:-10px;
     position:absolute;
 
