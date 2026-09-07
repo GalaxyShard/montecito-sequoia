@@ -819,6 +819,8 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
             break :blk "image/svg+xml";
         if (std.mem.eql(u8, extension, ".jpg"))
             break :blk "image/jpg";
+        if (std.mem.eql(u8, extension, ".avif"))
+            break :blk "image/avif";
         if (std.mem.eql(u8, extension, ".png"))
             break :blk "image/png";
         if (std.mem.eql(u8, extension, ".webp"))
