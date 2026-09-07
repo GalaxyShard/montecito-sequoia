@@ -51,7 +51,7 @@ function prepareNextImage() {
     }
     let nextImg = `/assets/hero/${images[count % images.length]}`;
     current.style.setProperty("--image", `url(${nextImg})`)
-    
+
     setTimeout(() => {
         current.classList.add("current");
         prev.classList.remove("current");

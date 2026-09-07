@@ -18,14 +18,14 @@ p.editor-hover-element {
 
     display:flex;
     flex-direction: column;
-    
+
     background-color: white;
     color:black;
 }
 .editor {
     width:100%;
     border-radius:5px;
-    
+
     background-color: #f0f0f0;
     padding:2px;
 }
@@ -57,7 +57,7 @@ p.editor-hover-element {
 }
 .editor-toolbar > button {
     color:#007bff;
-    
+
     flex-grow:1;
     background-color: white;
     border:none;
