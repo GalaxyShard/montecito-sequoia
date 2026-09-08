@@ -1,6 +1,5 @@
 {
 	"scripts": {
-		"build": "rollup --config",
 		"serve": "(cd ./zig-out/site && serve)"
 	},
 

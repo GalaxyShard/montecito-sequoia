@@ -8,7 +8,6 @@ pub fn build(b: *std.Build) !void {
     const run_editor_step = b.step("run-editor", "Run the editor executable");
     const check_step = b.step("check", "Check for compile errors");
     const test_step = b.step("test", "Test the editor executable");
-    const pnpm_enabled = b.option(bool, "pnpm", "Run pnpm before compiling (default: true)") orelse true;
 
     const editor = b.addExecutable(.{
         .name = "montecito-site-editor",
@@ -36,25 +35,20 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
-    if (pnpm_enabled) {
-        const pnpm = b.findProgram(.{ .names = &.{"pnpm"} }) orelse {
-            @panic("pnpm not found in PATH; pnpm is required to perform a full build");
-        };
-        const run_pnpm = b.addSystemCommand(&.{ pnpm, "run", "build" });
-        b.getInstallStep().dependOn(&run_pnpm.step);
-    }
+    const pnpm = b.findProgram(.{ .names = &.{"pnpm"} }) orelse {
+        @panic("pnpm not found in PATH; pnpm is required to perform a full build");
+    };
+    const run_pnpm = b.addSystemCommand(&.{ pnpm, "exec", "rollup", "--config" });
+
 
     b.getInstallStep().dependOn(&b.addInstallDirectory(.{
         .source_dir = b.path("site"),
         .install_dir = .bin,
         .install_subdir = "site-build",
     }).step);
-
-    b.getInstallStep().dependOn(&b.addInstallFileWithDir(
-        b.path("editor/inject/editor.css"),
-        .{ .custom = "bin/site-build" },
-        "editor.css",
-    ).step);
+    editor.root_module.addAnonymousImport("inject/editor.css", .{
+        .root_source_file = b.path("editor/inject/editor.css"),
+    });
 
     // note: depends on `pnpm install` having been run
     b.getInstallStep().dependOn(&b.addInstallFileWithDir(
@@ -64,11 +58,13 @@ pub fn build(b: *std.Build) !void {
     ).step);
 
     // note: depends on `pnpm install` having been run
-    b.getInstallStep().dependOn(&b.addInstallFileWithDir(
-        b.path("node_modules/quill/dist/quill.snow.css"),
-        .{ .custom = "bin/site-build" },
-        "quill.snow.css",
-    ).step);
+    editor.root_module.addAnonymousImport("quill.snow.css", .{
+        .root_source_file = b.path("node_modules/quill/dist/quill.snow.css"),
+    });
+
+    editor.root_module.addAnonymousImport("inject/editor.js", .{
+        .root_source_file = run_pnpm.captureStdOut(.{}),
+    });
 
     const generate_editor_app = b.addRunArtifact(generate_html);
 
@@ -129,6 +125,7 @@ pub fn build(b: *std.Build) !void {
     editor_step.dependOn(&install_editor.step);
     b.getInstallStep().dependOn(editor_step);
     run_editor.step.dependOn(&install_editor.step);
+    run_editor.step.dependOn(b.getInstallStep());
 
     check_step.dependOn(&check_editor.step);
 }

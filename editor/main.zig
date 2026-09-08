@@ -7,6 +7,9 @@ const filesystem_dialog = @import("filesystem-dialog");
 const clipboard = @import("clipboard");
 
 const app_html = @embedFile("index.html");
+const inject_editor_css = @embedFile("inject/editor.css");
+const inject_editor_js = @embedFile("inject/editor.js");
+const quill_snow_css = @embedFile("quill.snow.css");
 
 const State = struct {
     // main thread deinitializes, server thread appends, server-client threads remove
@@ -787,6 +790,39 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
     }
 
     const page = request.head.target[1..]; // ignore leading `/`
+
+    if (std.mem.eql(u8, page, "editor.css")) {
+        try request.respond(inject_editor_css, .{
+            .extra_headers = &.{
+                .{
+                    .name = "Content-Type",
+                    .value = "text/css",
+                },
+            },
+        });
+        return;
+    } else if (std.mem.eql(u8, page, "editor.js")) {
+        try request.respond(inject_editor_js, .{
+            .extra_headers = &.{
+                .{
+                    .name = "Content-Type",
+                    .value = "text/javascript",
+                },
+            },
+        });
+        return;
+    } else if (std.mem.eql(u8, page, "quill.snow.css")) {
+        try request.respond(quill_snow_css, .{
+            .extra_headers = &.{
+                .{
+                    .name = "Content-Type",
+                    .value = "text/css",
+                },
+            },
+        });
+        return;
+    }
+
     const file, const path = findHtml(state.io, state.gpa, state.site_dir.?, page) catch |e| switch (e) {
         error.UnsafePath => {
             std.debug.print("not sending; path failed hasDirectoryTraversal: {s}\n", .{page});
