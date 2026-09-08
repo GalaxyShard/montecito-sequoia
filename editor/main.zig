@@ -73,6 +73,7 @@ pub fn main(init: std.process.Init) !void {
     defer clipboard.deinit();
 
     try filesystem_dialog.init();
+    defer filesystem_dialog.deinit();
 
     const webview = Webview.init(builtin.mode == .debug, null) orelse return error.FailedToCreateWebview;
     defer webview.destroy();
@@ -144,6 +145,9 @@ pub fn main(init: std.process.Init) !void {
 
     const import_website_copy = try webview.bind(gpa, "backendImportWebsiteCopy", &importWebsiteCopy, .{&state});
     defer import_website_copy.deinit();
+
+    const export_website = try webview.bind(gpa, "backendExportWebsite", &exportWebsite, .{&state});
+    defer export_website.deinit();
 
     try webview.run();
 }
@@ -1147,7 +1151,9 @@ fn importWebsiteCopy2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const st
     defer gpa.free(picked);
 
     const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    defer generic_data_folder.close(io);
     const backups_folder = generic_data_folder.openDir(io, "montecito-site-backups", .{}) catch return error.FailedToOpenBackupsFolder;
+    defer backups_folder.close(io);
 
     var source = try std.Io.Dir.cwd().openDir(io, picked, .{ .iterate = true });
     defer source.close(io);
@@ -1160,6 +1166,90 @@ fn importWebsiteCopy2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const st
     };
 
     try copyDirectory(io, gpa, source, backups_folder, "master-copy");
+
+    return false;
+}
+
+
+fn exportWebsite(context: Webview.BindContext, state: *State) void {
+    const cancelled = exportWebsite2(state.io, state.gpa, state.environ_map) catch |e| {
+        context.returnError(e) catch |e2| {
+            std.debug.panic("double error: {t}, {t}", .{ e, e2 });
+        };
+        return;
+    };
+
+    context.returnValue(.{ .cancelled = cancelled }) catch |e| {
+        std.debug.panic("error returning: {t}", .{e});
+    };
+}
+fn exportWebsite2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const std.process.Environ.Map) !bool {
+    const picked = try filesystem_dialog.openDirectoryPicker(gpa, null) orelse return true;
+    defer gpa.free(picked);
+
+    const generic_data_folder = (known_folders.open(io, gpa, environ_map, .data, .{}) catch return error.FailedToOpenDataFolder) orelse return error.NoDataFolder;
+    defer generic_data_folder.close(io);
+    const master_copy = generic_data_folder.openDir(io, "montecito-site-backups/master-copy", .{ .iterate = true }) catch return error.FailedToOpenMasterCopy;
+    defer master_copy.close(io);
+
+    var destination = try std.Io.Dir.cwd().openDir(io, picked, .{});
+    defer destination.close(io);
+
+
+
+    var walker = try master_copy.walk(gpa);
+    defer walker.deinit();
+
+    var buffer_reader: [1024]u8 = undefined;
+    var buffer_writer: [1024]u8 = undefined;
+    while (try walker.next(io)) |entry| {
+        switch (entry.kind) {
+            .file => {
+                if (std.mem.endsWith(u8, entry.basename, ".html")) {
+                    const in = try entry.dir.openFile(io, entry.basename, .{});
+                    var reader = in.reader(io, &buffer_reader);
+                    const out = try destination.createFile(io, entry.path, .{});
+                    defer out.close(io);
+                    var writer = out.writer(io, &buffer_writer);
+
+                    while (true) {
+                        _ = reader.interface.streamDelimiter(&writer.interface, '<') catch |e| switch (e) {
+                            error.EndOfStream => {
+                                std.debug.print("MissingTitle: {s}\n", .{entry.path});
+                                return error.MissingTitle;
+                            },
+                            else => return e,
+                        };
+                        const next = reader.interface.peek("<title>".len) catch |e| switch (e) {
+                            error.EndOfStream => {
+                                std.debug.print("MissingTitle 2: {s}\n", .{entry.path});
+                                return error.MissingTitle;
+                            },
+                            else => return e,
+                        };
+                        if (std.mem.eql(u8, next, "<title>")) {
+                            break;
+                        }
+                        try reader.interface.streamExact(&writer.interface, 1);
+                    }
+                    try writer.interface.writeAll("<meta name=\"robots\" content=\"noindex\">");
+                    _ = try reader.interface.streamRemaining(&writer.interface);
+                } else {
+                    entry.dir.copyFile(entry.basename, destination, entry.path, io, .{}) catch |e| {
+                        std.debug.print("failed to copy file '{s}' {t}\n", .{ entry.path, e });
+                        return e;
+                    };
+                }
+            },
+            .directory => {
+                destination.createDir(io, entry.path, .default_dir) catch |e| {
+                    std.debug.print("failed to make directory '{s}' {t}\n", .{ entry.path, e });
+                    return e;
+                };
+            },
+            else => continue,
+        }
+    }
 
     return false;
 }

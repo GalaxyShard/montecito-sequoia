@@ -38,6 +38,7 @@ let openProduction = document.getElementById("open-production");
 let openEditor = document.getElementById("open-editor");
 let manageBackups = document.getElementById("manage-backups");
 let importWebsiteCopy = document.getElementById("import-website-copy");
+let exportWebsite = document.getElementById("export");
 let backButtons = document.getElementsByClassName("back-button");
 
 let makeBackup = document.getElementById("make-backup");
@@ -196,6 +197,23 @@ importWebsiteCopy.addEventListener("click", () => {
         }
     }).catch(e => {
         frontPageStatus.textContent = "Failed to import website: " + e;
+    });
+});
+
+exportWebsite.addEventListener("click", () => {
+    frontPageStatus.textContent = "Exporting website...";
+    window.backendExportWebsite().then(info => {
+        if (info.cancelled) {
+            frontPageStatus.textContent = "No folder was selected to export to";
+        } else {
+            frontPageStatus.textContent = "Exported";
+        }
+    }).catch(e => {
+        if (e == "MissingTitle") {
+            frontPageStatus.textContent = "Failed to export website because there is an HTML file without a <title>. This may be caused by an empty file.";
+        } else {
+            frontPageStatus.textContent = "Failed to export website: " + e;
+        }
     });
 });
 
