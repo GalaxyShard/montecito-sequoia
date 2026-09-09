@@ -1228,10 +1228,10 @@ fn exportWebsite2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const std.pr
     const master_copy = generic_data_folder.openDir(io, "montecito-site-backups/master-copy", .{ .iterate = true }) catch return error.FailedToOpenMasterCopy;
     defer master_copy.close(io);
 
-    var destination = try std.Io.Dir.cwd().openDir(io, picked, .{});
+    var destination_root = try std.Io.Dir.cwd().openDir(io, picked, .{});
+    defer destination_root.close(io);
+    var destination = try destination_root.createDirPathOpen(io, "site-export", .{});
     defer destination.close(io);
-
-
 
     var walker = try master_copy.walk(gpa);
     defer walker.deinit();
