@@ -97,7 +97,7 @@ pub fn main(init: std.process.Init) !void {
                 const self_dir = std.process.executableDirPathAlloc(io, gpa) catch break :blk null;
                 defer gpa.free(self_dir);
 
-                const site_build_path = try std.fs.path.join(gpa, &.{ self_dir, "site-build" });
+                const site_build_path = try std.fs.path.join(gpa, &.{ self_dir, "site-initial-copy" });
                 defer gpa.free(site_build_path);
 
                 var site_dir = std.Io.Dir.cwd().openDir(io, site_build_path, .{ .iterate = true }) catch break :blk null;

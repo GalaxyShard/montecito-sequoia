@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">-->
+    <title>Stony Creek Lodge</title>
+
+    <link rel="stylesheet" href="/style.css">
+
+    <style>
+        h1 {
+            text-transform:uppercase;
+            padding:30px 0 0 0;
+            letter-spacing:7px;
+        }
+        header h2 {
+            padding:0 0 30px 0;
+            font-size:1.1rem;
+            font-style:italic;
+            margin:0;
+            font-family:inherit;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 data-uneditable>Stony Creek Lodge</h1>
+        <h2 data-uneditable>Sequoia &amp; Kings Canyon National Parks</h2>
+    </header>
+
+    <nav>
+        <div>
+            <div><a href="/">Home</a></div>
+            <div><a href="/">Sights</a></div>
+            <div><a href="/">Weather</a></div>
+        </div>
+    </nav>
+
+    <img-fitted id="hero" role="img" style="
+        --image:url('/assets/stony-creek-outside.avif');
+        --image-max:700px;
+        height:calc(250px + 5vw);
+    " aria-label="Picture of the outside of Stony Creek Lodge"></img-fitted>
+
+    <div class="limit-size-one">
+        <main>
+            <p>
+                  The Stony Creek Lodge is located in the Sierra Nevada mountain range, between the Sequoia and Kings Canyon National Parks. With easy access to both parks, Stony Creek Lodge is an excellent choice for travellers and visitors.
+            </p>
+
+            <hr>
+
+            <h2>Our lodging</h2>
+
+            <img-fitted role="img" style="
+                --image:url('/assets/stony-creek-room-single.avif');
+                height:calc(250px + 5vw);
+                border-radius:5px;
+            " aria-label=""></img-fitted>
+        </main>
+    </div>
+</body>
+</html>

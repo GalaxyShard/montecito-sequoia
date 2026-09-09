@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sequoia &amp; Kings Canyon National Parks</title>
+
+    <link rel="stylesheet" href="/style.css">
+
+    <style>
+        h1 {
+            text-transform:uppercase;
+            padding:30px 0;
+            font-size:2rem;
+        }
+        #hero a {
+            display:inline-block;
+            position:absolute;
+            margin-left:auto;
+            margin-right:0;
+            top:5px;
+            right:10px;
+
+            z-index:1;
+            font-style:italic;
+            font-size:0.7rem;
+            text-decoration:none;
+            color:#ffffff;
+            text-shadow:0 0 2px #000000;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 data-uneditable>Sequoia &amp; Kings Canyon Lodging</h1>
+    </header>
+
+    <nav>
+        <div>
+            <div><a data-current href="/">Home</a></div>
+            <div><a href="/">Sights</a></div>
+            <div><a href="/">Weather</a></div>
+        </div>
+    </nav>
+
+    <img-fitted id="hero" role="img" style="
+        --image:url('/assets/kings-canyon-sphinx.avif');
+        --image-max:700px;
+        height:calc(250px + 5vw);
+    " aria-label="Picture of Kings Canyon"><a href="https://commons.wikimedia.org/w/index.php?curid=20032656">Photo by Crd637</a></img-fitted>
+
+    <div class="limit-size-one">
+        <main>
+
+            <h2>Lodging</h2>
+
+            <p style="margin-bottom:0">
+                <b>Stony Creek Lodge</b>, located in the Sierra Nevada mountain range, sits between the Sequoia and Kings Canyon National Parks. With easy access to both parks and a well-stocked convenience store, Stony Creek Lodge is an excellent choice for travellers and visitors.
+            </p>
+
+            <a href="/stony-creek-lodge" class="link-button-log link-arrow">See Stony Creek Lodge</a>
+
+            <p style="margin-bottom:0">
+                <b>Montecito Sequoia Lodge</b>, just a few miles from Stony Creek, offers more than just a room.  "All Inclusive Packages" include comfortable lodging, savory buffet meals, and seasonal activities for adults and children. Full-service family camp is available during the summer.
+            </p>
+
+            <a href="https://mslodge.com" class="link-button-log link-arrow">See Montecito Sequoia Lodge</a>
+
+            <hr>
+
+            <h2>About the parks</h2>
+
+            <p>
+                Sequoia and Kings Canyon National Parks are world-renowned for their giant sequoias, offering the visitor many extraordinary sights to see beyond the largest living trees in the world.
+            </p>
+
+            <p>
+                In 1873, John Muir, the famous naturalist, visited Kings Canyon and was impressed by its terrain. "A rival to the Yosemite," wrote Muir. It was he who advocated the creation of "one grand national park," that included Sequoia National Park and Kings Canyon to protect them for future generations to enjoy.
+            </p>
+
+            <a target="_blank" href="/" class="link-button-log link-arrow">Sights</a>
+
+        </main>
+    </div>
+</body>
+</html>

@@ -8,6 +8,7 @@ pub fn build(b: *std.Build) !void {
     const run_editor_step = b.step("run-editor", "Run the editor executable");
     const check_step = b.step("check", "Check for compile errors");
     const test_step = b.step("test", "Test the editor executable");
+    const stony_or_mslodge = b.option(bool, "stony", "Build Stony Creek Lodge instead of Montecito") orelse false;
 
     const editor = b.addExecutable(.{
         .name = "montecito-site-editor",
@@ -41,11 +42,20 @@ pub fn build(b: *std.Build) !void {
     const run_pnpm = b.addSystemCommand(&.{ pnpm, "exec", "rollup", "--config" });
     run_pnpm.has_side_effects = true;
 
-    b.getInstallStep().dependOn(&b.addInstallDirectory(.{
-        .source_dir = b.path("site"),
-        .install_dir = .bin,
-        .install_subdir = "site-build",
-    }).step);
+    if (stony_or_mslodge) {
+        b.getInstallStep().dependOn(&b.addInstallDirectory(.{
+            .source_dir = b.path("stony-creek"),
+            .install_dir = .bin,
+            .install_subdir = "stony/site-initial-copy",
+        }).step);
+    } else {
+        b.getInstallStep().dependOn(&b.addInstallDirectory(.{
+            .source_dir = b.path("site"),
+            .install_dir = .bin,
+            .install_subdir = "montecito/site-initial-copy",
+        }).step);
+    }
+
     editor.root_module.addAnonymousImport("inject/editor.css", .{
         .root_source_file = b.path("editor/inject/editor.css"),
     });
@@ -53,7 +63,7 @@ pub fn build(b: *std.Build) !void {
     // note: depends on `pnpm install` having been run
     b.getInstallStep().dependOn(&b.addInstallFileWithDir(
         b.path("node_modules/bootstrap/dist/css/bootstrap.min.css"),
-        .{ .custom = "bin/site-build" },
+        .{ .custom = "bin/montecito/site-initial-copy" },
         "bootstrap.min.css",
     ).step);
 
