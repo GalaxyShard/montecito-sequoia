@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) !void {
         @panic("pnpm not found in PATH; pnpm is required to perform a full build");
     };
     const run_pnpm = b.addSystemCommand(&.{ pnpm, "exec", "rollup", "--config" });
-
+    run_pnpm.has_side_effects = true;
 
     b.getInstallStep().dependOn(&b.addInstallDirectory(.{
         .source_dir = b.path("site"),
