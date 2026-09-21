@@ -34,6 +34,13 @@ import Bold from '@tiptap/extension-bold'
 import Italic from '@tiptap/extension-italic'
 import Link from '@tiptap/extension-link'
 
+async function sendMessageToApp(body) {
+    await fetch("/post", {
+        method: "POST",
+        body: body,
+    });
+}
+
 const SmallMark = Mark.create({
     name: "small",
     addOptions() {
@@ -197,10 +204,7 @@ function createTextEditor(element) {
                 .replace(/<\/((p|h[0-9]|ul))>/g, "\n</$1>\n");
         }
 
-        await fetch("/post", {
-            method: "POST",
-            body: serializeCommand("replace-element") + serializedLocation + html + "\n",
-        });
+        await sendMessageToApp(serializeCommand("replace-element") + serializedLocation + html + "\n");
 
         for (let e of frag.children) {
             setupElementEditing(e);
@@ -276,10 +280,7 @@ function createImageEditor(element) {
             element.src = input.value;
         }
 
-        await fetch("/post", {
-            method: "POST",
-            body: serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element),
-        });
+        await sendMessageToApp(serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element));
 
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
@@ -339,10 +340,7 @@ function createLinkEditor(element) {
         element.textContent = text.value;
         element.href = link.value;
 
-        await fetch("/post", {
-            method: "POST",
-            body: serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element),
-        });
+        await sendMessageToApp(serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element));
 
         setupElementEditing(element);
         container.parentElement.replaceChild(element, container);
@@ -377,10 +375,7 @@ function createAddElementDropdown(element) {
     dropdown.classList.add("editor-dropdown");
 
     async function finalizeAddition(newElement) {
-        await fetch("/post", {
-            method: "POST",
-            body: serializeCommand("add-element") + serializePlacementLocation(element) + serializeElementHtml(newElement),
-        });
+        await sendMessageToApp(serializeCommand("add-element") + serializePlacementLocation(element) + serializeElementHtml(newElement));
 
         removeHoverToolbar(element);
 
@@ -500,10 +495,7 @@ function createHoverToolbar(element) {
             return;
         }
 
-        await fetch("/post", {
-            method: "POST",
-            body: serializeCommand("remove-element") + serializePlacementLocation(element),
-        });
+        await sendMessageToApp(serializeCommand("remove-element") + serializePlacementLocation(element));
 
         removeHoverToolbar(element);
         element.remove();
@@ -534,10 +526,7 @@ function createHoverToolbar(element) {
 
         if (nextElement) {
             const placeInsideNext = tagIs(nextElement, "DIV", "MAIN", "ASIDE", "SECTION") && !nextElement.classList.contains("row");
-            await fetch("/post", {
-                method: "POST",
-                body: serializeCommand("move-element") + serializePlacementLocation(element) + (placeInsideNext ? "in-start\n" : "after\n") + serializePlacementLocation(nextElement),
-            });
+            await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(element) + (placeInsideNext ? "in-start\n" : "after\n") + serializePlacementLocation(nextElement));
 
             removeHoverToolbar(element);
 
@@ -553,10 +542,7 @@ function createHoverToolbar(element) {
             {
                 // allow moving images up to the body, and anything else up one level but not to the body or out of a column
 
-                await fetch("/post", {
-                    method: "POST",
-                    body: serializeCommand("move-element") + serializePlacementLocation(element) + "after\n" + serializePlacementLocation(element.parentElement),
-                });
+                await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(element) + "after\n" + serializePlacementLocation(element.parentElement));
 
                 removeHoverToolbar(element);
                 element.parentElement.insertAdjacentElement("afterend", element);
@@ -575,10 +561,8 @@ function createHoverToolbar(element) {
 
         if (prevElement) {
             const placeInsidePrev = tagIs(prevElement, "DIV", "MAIN", "ASIDE", "SECTION") && !prevElement.classList.contains("row");
-            await fetch("/post", {
-                method: "POST",
-                body: serializeCommand("move-element") + serializePlacementLocation(element) + (placeInsidePrev ? "in-end\n" : "before\n") + serializePlacementLocation(prevElement),
-            });
+
+            await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(element) + (placeInsidePrev ? "in-end\n" : "before\n") + serializePlacementLocation(prevElement));
 
             removeHoverToolbar(element);
 
@@ -593,11 +577,7 @@ function createHoverToolbar(element) {
             && !element.parentElement.parentElement.classList.contains("row"))
         {
             // allow moving images up to the body, and anything else up one level but not to the body or out of a column
-
-            await fetch("/post", {
-                method: "POST",
-                body: serializeCommand("move-element") + serializePlacementLocation(element) + "before\n" + serializePlacementLocation(element.parentElement),
-            });
+            await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(element) + "before\n" + serializePlacementLocation(element.parentElement));
 
             removeHoverToolbar(element);
 
