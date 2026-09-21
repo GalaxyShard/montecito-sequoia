@@ -59,12 +59,17 @@ pub fn build(b: *std.Build) !void {
     editor.root_module.addAnonymousImport("inject/editor.css", .{
         .root_source_file = b.path("editor/inject/editor.css"),
     });
+    b.getInstallStep().dependOn(&b.addInstallFileWithDir(
+        b.path("editor/inject/editor.css"),
+        .bin,
+        "inject/editor.css",
+    ).step);
 
     // note: depends on `pnpm install` having been run
     b.getInstallStep().dependOn(&b.addInstallFileWithDir(
         b.path("node_modules/bootstrap/dist/css/bootstrap.min.css"),
-        .{ .custom = "bin/montecito/site-initial-copy" },
-        "bootstrap.min.css",
+        .bin,
+        "montecito/site-initial-copy/bootstrap.min.css",
     ).step);
 
     // note: depends on `pnpm install` having been run
@@ -72,9 +77,22 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("node_modules/quill/dist/quill.snow.css"),
     });
 
+    // note: depends on `pnpm install` having been run
+    b.getInstallStep().dependOn(&b.addInstallFileWithDir(
+        b.path("node_modules/quill/dist/quill.snow.css"),
+        .bin,
+        "inject/quill.snow.css",
+    ).step);
+
+    const editor_js_processed = run_pnpm.captureStdOut(.{});
     editor.root_module.addAnonymousImport("inject/editor.js", .{
-        .root_source_file = run_pnpm.captureStdOut(.{}),
+        .root_source_file = editor_js_processed,
     });
+    b.getInstallStep().dependOn(&b.addInstallFileWithDir(
+        editor_js_processed,
+        .bin,
+        "inject/editor.js",
+    ).step);
 
     const generate_editor_app = b.addRunArtifact(generate_html);
 
