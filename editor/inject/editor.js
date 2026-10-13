@@ -391,6 +391,9 @@ function createAddElementDropdown(element) {
         removeHoverToolbar(element);
 
         setupElementEditing(newElement);
+        if (newElement.classList.contains("alert")) {
+            setupElementEditing(newElement.firstChild); // paragraph
+        }
         if (element.classList.contains("alert")) {
             element.append(newElement);
         } else {
@@ -405,6 +408,9 @@ function createAddElementDropdown(element) {
         let e = document.createElement("div");
         e.classList.add("alert", "alert-info");
         e.role = "alert";
+        let text = document.createElement("p");
+        text.textContent = "Text";
+        e.append(text);
         await finalizeAddition(e);
     });
     dropdown.append(insertAlert);
@@ -417,6 +423,9 @@ function createAddElementDropdown(element) {
         let e = document.createElement("div");
         e.classList.add("alert", "alert-warning");
         e.role = "alert";
+        let text = document.createElement("p");
+        text.textContent = "Text";
+        e.append(text);
         await finalizeAddition(e);
     });
     dropdown.append(insertWarning);
