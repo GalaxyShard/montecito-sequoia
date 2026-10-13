@@ -97,8 +97,6 @@ function cancelConfirmation(cancel, defaultText) {
     return true;
 }
 
-let isEditorOpen = false;
-
 /**
  * @param {() => void} onCancel
  * @param {async () => void} onSave
@@ -135,8 +133,21 @@ function createToolbar(onCancel, onSave) {
  */
 function encodeAttributes(element) {
     let attributes = [];
+
+    let isHover = element.classList.contains("editor-hover-element");
+    let isSelected = element.classList.contains("editor-selected-element");
+    element.classList.remove("editor-hover-element");
+    element.classList.remove("editor-selected-element");
+
     for (const attr of element.attributes) {
         attributes.push([attr.nodeName, attr.nodeValue]);
+    }
+
+    if (isHover) {
+        element.classList.add("editor-hover-element");
+    }
+    if (isSelected) {
+        element.classList.add("editor-selected-element");
     }
     return JSON.stringify(attributes);
 }
@@ -153,12 +164,12 @@ function decodeAttributes(element, attributes) {
     }
 }
 
+let isEditorOpen = false;
+
 /**
  * @param {HTMLElement} element
  */
 function createTextEditor(element) {
-    removeHoverToolbar(element);
-
     let serializedLocation = serializePlacementLocation(element);
 
     let container = document.createElement("div");
@@ -172,8 +183,8 @@ function createTextEditor(element) {
         element.innerHTML = container.dataset.original;
 
         setupElementEditing(element);
-        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
+        handleEditorClose(element);
     }
 
     async function onSave() {
@@ -189,12 +200,27 @@ function createTextEditor(element) {
         }
         temp.remove();
         if (frag.children.length == 0) {
+            handleEditorClose(null);
             return;
         }
 
         decodeAttributes(frag.firstElementChild, container.dataset.attributes);
 
         let html = "";
+        for (let ul of frag.children) {
+            if (!tagIs(ul, "UL")) {
+                continue;
+            }
+            for (let li of ul.childNodes) {
+                for (let p of li.childNodes) {
+                    if (tagIs(p, "P")) {
+                        let text = p.innerHTML;
+                        li.removeChild(p);
+                        li.innerHTML += text;
+                    }
+                }
+            }
+        }
         for (let e of frag.children) {
             html += e.outerHTML
                 // remove empty elements
@@ -212,8 +238,15 @@ function createTextEditor(element) {
         for (let e of frag.children) {
             setupElementEditing(e);
         }
-        isEditorOpen = false;
+
+        let prev = container.previousElementSibling;
+        let parent = container.parentElement;
         container.parentElement.replaceChild(frag, container);
+        if (prev == null) {
+            handleEditorClose(parent.firstElementChild);
+        } else {
+            handleEditorClose(prev.nextElementSibling);
+        }
     }
 
     let toolbar = createToolbar(onCancel, onSave);
@@ -234,7 +267,7 @@ function createTextEditor(element) {
         ],
         content: element.outerHTML,
     })
-    isEditorOpen = true;
+    handleEditorOpen();
     element.parentElement.replaceChild(container, element);
 
     editorInstance.commands.focus("end");
@@ -244,8 +277,6 @@ function createTextEditor(element) {
  * @param {HTMLImageElement | HTMLElement} element
  */
 function createImageEditor(element) {
-    removeHoverToolbar(element);
-
     let serializedLocation = serializePlacementLocation(element);
 
     let container = document.createElement("div");
@@ -273,8 +304,8 @@ function createImageEditor(element) {
 
         decodeAttributes(element, container.dataset.attributes);
         setupElementEditing(element);
-        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
+        handleEditorClose(element);
     }
     async function onSave() {
         let element = document.createElement(container.dataset.tag);
@@ -289,8 +320,8 @@ function createImageEditor(element) {
         await sendMessageToApp(serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element));
 
         setupElementEditing(element);
-        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
+        handleEditorClose(element);
     }
     let toolbar = createToolbar(onCancel, onSave);
     container.dataset.attributes = encodeAttributes(element);
@@ -299,7 +330,7 @@ function createImageEditor(element) {
     inputLabel.append(document.createTextNode("Image Link"), input)
     container.append(inputLabel, toolbar);
 
-    isEditorOpen = true;
+    handleEditorOpen();
     element.parentElement.replaceChild(container, element);
 
     input.focus();
@@ -309,8 +340,6 @@ function createImageEditor(element) {
  * @param {HTMLImageElement | HTMLElement} element
  */
 function createLinkEditor(element) {
-    removeHoverToolbar(element);
-
     let serializedLocation = serializePlacementLocation(element);
 
     let container = document.createElement("div");
@@ -328,8 +357,8 @@ function createLinkEditor(element) {
     linkLabel.classList.add("editor-element");
     link.classList.add("editor-element");
     link.type = "text";
-    // getAttribute instead of .href so that the domain name isn't inserted automatically
-    link.value = element.getAttribute("href");
+
+    link.value = element.dataset.originalHref;
 
     function onCancel() {
         let element = document.createElement("a");
@@ -338,23 +367,23 @@ function createLinkEditor(element) {
         element.textContent = container.dataset.original;
 
         setupElementEditing(element);
-        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
-
+        handleEditorClose(element);
     }
     async function onSave() {
         let element = document.createElement("a");
         decodeAttributes(element, container.dataset.attributes);
 
         element.textContent = text.value;
-        element.href = link.value;
+
+        element.href = "javascript:void(0);";
+        element.dataset.originalHref = link.value;
 
         await sendMessageToApp(serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element));
 
         setupElementEditing(element);
-        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
-
+        handleEditorClose(element);
     }
     let toolbar = createToolbar(onCancel, onSave);
 
@@ -366,19 +395,15 @@ function createLinkEditor(element) {
 
     container.append(textLabel, linkLabel, toolbar);
 
-    isEditorOpen = true;
+    handleEditorOpen();
     element.parentElement.replaceChild(container, element);
 }
 
-/**
- * @param {HTMLElement} element
- */
-function createAddElementDropdown(element) {
-    let container = element.nextElementSibling;
-    if (!container || !container.classList.contains("editor-hover-container")) {
-        return;
-    }
+function createAddElementDropdown() {
+    let container = hoverToolbarContainer;
     if (container.getElementsByClassName("editor-dropdown").length > 0) {
+        // delete it instead
+        container.getElementsByClassName("editor-dropdown")[0].remove();
         return;
     }
     let dropdown = document.createElement("div");
@@ -386,19 +411,18 @@ function createAddElementDropdown(element) {
     dropdown.classList.add("editor-dropdown");
 
     async function finalizeAddition(newElement) {
-        await sendMessageToApp(serializeCommand("add-element") + serializePlacementLocation(element) + serializeElementHtml(newElement));
-
-        removeHoverToolbar(element);
+        await sendMessageToApp(serializeCommand("add-element") + serializePlacementLocation(selectedElement) + serializeElementHtml(newElement));
 
         setupElementEditing(newElement);
         if (newElement.classList.contains("alert")) {
             setupElementEditing(newElement.firstChild); // paragraph
         }
-        if (element.classList.contains("alert")) {
-            element.append(newElement);
+        if (selectedElement.classList.contains("alert")) {
+            selectedElement.append(newElement);
         } else {
-            element.insertAdjacentElement("afterend", newElement);
+            selectedElement.insertAdjacentElement("afterend", newElement);
         }
+        dropdown.remove();
     }
 
     let insertAlert = document.createElement("button");
@@ -450,7 +474,8 @@ function createAddElementDropdown(element) {
     insertLink.addEventListener("click", async _ => {
         let e = document.createElement("a");
         e.textContent = "Link";
-        e.href = "/";
+        e.dataset.originalHref = "/";
+        e.href = "javascript:void(0);";
         e.classList.add("link-button-log", "link-arrow");
         await finalizeAddition(e);
     });
@@ -479,33 +504,76 @@ function createAddElementDropdown(element) {
 
     container.append(dropdown);
 }
-let currentToolbarElement = null;
+
+let selectedElement = null;
+let hoverToolbarContainer = null;
 
 /**
  * @param {HTMLElement} element
  */
-function removeHoverToolbar(element) {
-    let container = element.nextElementSibling;
-    if (container && container.classList.contains("editor-hover-container")) {
-        container.remove();
+function deselectSelected() {
+    hoverToolbarContainer.classList.add("editor-hover-container-colorless");
+    if (selectedElement) {
+        selectedElement.classList.remove("editor-selected-element");
+        selectedElement = null;
     }
-    currentToolbarElement = null;
-    element.classList.remove("editor-hover-element");
+}
+function handleEditorOpen() {
+    isEditorOpen = true;
+    selectedElement = null;
+    hoverToolbarContainer.classList.add("editor-hover-container-colorless");
+}
+function handleEditorClose(newElement) {
+    isEditorOpen = false;
+    if (newElement !== null) {
+        selectElement(newElement);
+    } else {
+        selectedElement = null;
+        hoverToolbarContainer.classList.add("editor-hover-container-colorless");
+    }
+}
+
+function toolbarDeactivated() {
+    return selectedElement===null || isEditorOpen;
 }
 
 /**
  * @param {HTMLElement} element
  */
-function createHoverToolbar(element) {
-    if (element.classList.contains("editor-hover-element")) {
-        return;
+function selectElement(element) {
+    element.classList.add("editor-selected-element");
+    hoverToolbarContainer.classList.remove("editor-hover-container-colorless");
+    selectedElement = element;
+
+    //p, ul, img-fitted, img, hr, link-button-log, alert
+    let editButton = hoverToolbarContainer.getElementsByClassName("editor-edit-button")[0];
+    if (tagIs(selectedElement, "HR") || selectedElement.classList.contains("alert")) {
+        editButton.classList.add("editor-button-deactivated")
+    } else {
+        editButton.classList.remove("editor-button-deactivated")
     }
+}
+
+/**
+ * @param {HTMLElement} element
+ */
+function selectOrRemoveIfSelected(element) {
     if (isEditorOpen) {
         return;
     }
+    if (selectedElement === element) {
+        deselectSelected();
+        return;
+    }
+    deselectSelected();
+    selectElement(element);
+}
 
+function createHoverToolbar() {
     let container = document.createElement("div");
+    hoverToolbarContainer = container;
     container.classList.add("editor-hover-container");
+    container.classList.add("editor-hover-container-colorless");
 
     let toolbar = document.createElement("div");
     toolbar.classList.add("editor-toolbar");
@@ -514,61 +582,70 @@ function createHoverToolbar(element) {
     removeButton.textContent = "Remove";
     removeButton.classList.add("editor-cancel");
     removeButton.addEventListener("click", async _ => {
+        if (toolbarDeactivated()) {
+            return;
+        }
         if (!cancelConfirmation(removeButton, "Remove")) {
             return;
         }
 
-        await sendMessageToApp(serializeCommand("remove-element") + serializePlacementLocation(element));
-
-        removeHoverToolbar(element);
-        element.remove();
+        await sendMessageToApp(serializeCommand("remove-element") + serializePlacementLocation(selectedElement));
+        selectedElement.remove();
+        deselectSelected();
     });
     toolbar.append(removeButton);
 
-    if (!tagIs(element, "HR") && !element.classList.contains("alert")) {
-        let editButton = document.createElement("button");
-        editButton.classList.add("editor-element");
-        editButton.textContent = "Edit";
-        editButton.addEventListener("click", _ => {
-            if (tagIs(element, "IMG", "IMG-FITTED")) {
-                createImageEditor(element);
-            } else if (tagIs(element, "A")) {
-                createLinkEditor(element);
-            } else {
-                createTextEditor(element);
-            }
-        });
-        toolbar.append(editButton);
-    }
+    let editButton = document.createElement("button");
+    editButton.classList.add("editor-element");
+    editButton.classList.add("editor-edit-button");
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", _ => {
+        if (toolbarDeactivated()) {
+            return;
+        }
+
+        if (tagIs(selectedElement, "IMG", "IMG-FITTED")) {
+            createImageEditor(selectedElement);
+        } else if (tagIs(selectedElement, "A")) {
+            createLinkEditor(selectedElement);
+        } else if (tagIs(selectedElement, "HR") || selectedElement.classList.contains("alert")) {
+            // not editable
+        } else {
+            createTextEditor(selectedElement);
+        }
+    });
+    toolbar.append(editButton);
+
     let downButton = document.createElement("button");
     downButton.textContent = "";
     downButton.classList.add("editor-down-button");
 
     downButton.addEventListener("click", async _ => {
-        let nextElement = element.nextElementSibling.nextElementSibling; // skip the toolbar
+        if (toolbarDeactivated()) {
+            return;
+        }
+
+        let nextElement = selectedElement.nextElementSibling;
 
         if (nextElement) {
             const placeInsideNext = tagIs(nextElement, "DIV", "MAIN", "ASIDE", "SECTION") && !nextElement.classList.contains("row");
-            await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(element) + (placeInsideNext ? "in-start\n" : "after\n") + serializePlacementLocation(nextElement));
-
-            removeHoverToolbar(element);
+            await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(selectedElement) + (placeInsideNext ? "in-start\n" : "after\n") + serializePlacementLocation(nextElement));
 
             if (placeInsideNext) {
-                nextElement.insertBefore(element, nextElement.firstElementChild);
+                nextElement.insertBefore(selectedElement, nextElement.firstElementChild);
             } else {
-                nextElement.insertAdjacentElement("afterend", element);
+                nextElement.insertAdjacentElement("afterend", selectedElement);
             }
         } else {
-            if (!tagIs(element.parentElement, "BODY")
-                && (!tagIs(element.parentElement.parentElement, "BODY") || tagIs(element, "IMG", "IMG-FITTED"))
-                && !element.parentElement.parentElement.classList.contains("row"))
+            if (!tagIs(selectedElement.parentElement, "BODY")
+                && (!tagIs(selectedElement.parentElement.parentElement, "BODY") || tagIs(selectedElement, "IMG", "IMG-FITTED"))
+                && !selectedElement.parentElement.parentElement.classList.contains("row"))
             {
                 // allow moving images up to the body, and anything else up one level but not to the body or out of a column
 
-                await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(element) + "after\n" + serializePlacementLocation(element.parentElement));
+                await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(selectedElement) + "after\n" + serializePlacementLocation(selectedElement.parentElement));
 
-                removeHoverToolbar(element);
-                element.parentElement.insertAdjacentElement("afterend", element);
+                selectedElement.parentElement.insertAdjacentElement("afterend", selectedElement);
             }
         }
     });
@@ -580,31 +657,31 @@ function createHoverToolbar(element) {
     upButton.classList.add("editor-up-button");
 
     upButton.addEventListener("click", async _ => {
-        let prevElement = element.previousElementSibling;
+        if (toolbarDeactivated()) {
+            return;
+        }
+
+        let prevElement = selectedElement.previousElementSibling;
 
         if (prevElement) {
             const placeInsidePrev = tagIs(prevElement, "DIV", "MAIN", "ASIDE", "SECTION") && !prevElement.classList.contains("row");
 
-            await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(element) + (placeInsidePrev ? "in-end\n" : "before\n") + serializePlacementLocation(prevElement));
-
-            removeHoverToolbar(element);
+            await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(selectedElement) + (placeInsidePrev ? "in-end\n" : "before\n") + serializePlacementLocation(prevElement));
 
             if (placeInsidePrev) {
-                prevElement.append(element);
+                prevElement.append(selectedElement);
             } else {
-                element.parentElement.insertBefore(element, prevElement);
+                selectedElement.parentElement.insertBefore(selectedElement, prevElement);
             }
 
-        } else if (!tagIs(element.parentElement, "BODY")
-            && (!tagIs(element.parentElement.parentElement, "BODY") || tagIs(element, "IMG", "IMG-FITTED"))
-            && !element.parentElement.parentElement.classList.contains("row"))
+        } else if (!tagIs(selectedElement.parentElement, "BODY")
+            && (!tagIs(selectedElement.parentElement.parentElement, "BODY") || tagIs(selectedElement, "IMG", "IMG-FITTED"))
+            && !selectedElement.parentElement.parentElement.classList.contains("row"))
         {
             // allow moving images up to the body, and anything else up one level but not to the body or out of a column
-            await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(element) + "before\n" + serializePlacementLocation(element.parentElement));
+            await sendMessageToApp(serializeCommand("move-element") + serializePlacementLocation(selectedElement) + "before\n" + serializePlacementLocation(selectedElement.parentElement));
 
-            removeHoverToolbar(element);
-
-            element.parentElement.parentElement.insertBefore(element, element.parentElement);
+            selectedElement.parentElement.parentElement.insertBefore(selectedElement, selectedElement.parentElement);
         }
     });
     toolbar.append(upButton);
@@ -614,29 +691,27 @@ function createHoverToolbar(element) {
     addButton.classList.add("editor-element");
     addButton.textContent = "Add";
     addButton.addEventListener("click", _ => {
-        createAddElementDropdown(element);
+        if (toolbarDeactivated()) {
+            return;
+        }
+
+        createAddElementDropdown();
     });
     toolbar.append(addButton);
 
     container.addEventListener("mouseenter", e => {
+        if (currentLinkHolder) {
+            currentLinkHolder.remove();
+            currentLinkHolder = null;
+        }
         e.stopPropagation();
     });
     container.addEventListener("mousemove", e => {
         e.stopPropagation();
     });
-    element.classList.add("editor-hover-element");
 
     container.append(toolbar);
-
-    element.insertAdjacentElement("afterend", container);
-    container.style.left = (element.offsetLeft - 3) + "px";
-    container.style.top = (element.offsetTop + element.offsetHeight - 1) + "px";
-    container.style.width = (element.offsetWidth + 3 - 1) + "px";
-
-    if (currentToolbarElement !== null) {
-        removeHoverToolbar(currentToolbarElement);
-    }
-    currentToolbarElement = element;
+    document.body.append(container);
 }
 
 /**
@@ -659,7 +734,7 @@ function serializePlacementLocation(element) {
             continue;
         }
         for (let item of elements[i].classList.values()) {
-            if (item.startsWith("editor-") && item != "editor-hover-element") {
+            if (item.startsWith("editor-") && item != "editor-hover-element" && item != "editor-selected-element") {
                 count = false;
                 break;
             }
@@ -688,8 +763,35 @@ function serializeCommand(command) {
  * @returns {string}
  */
 function serializeElementHtml(element) {
-    return element.outerHTML + "\n";
+    if (tagIs(element, "A")) {
+        element.href = element.dataset.originalHref;
+        delete element.dataset.originalHref;
+
+    }
+    let isHover = element.classList.contains("editor-hover-element");
+    let isSelected = element.classList.contains("editor-selected-element");
+    element.classList.remove("editor-hover-element");
+    element.classList.remove("editor-selected-element");
+
+    let out = element.outerHTML + "\n";
+
+    if (tagIs(element, "A")) {
+        // getAttribute instead of .href so that the domain name isn't inserted automatically
+        element.dataset.originalHref = element.getAttribute("href");
+        element.href = "javascript:void(0);";
+    }
+
+    if (isHover) {
+        element.classList.add("editor-hover-element");
+    }
+    if (isSelected) {
+        element.classList.add("editor-selected-element");
+    }
+
+    return out;
 }
+
+let currentLinkHolder = null;
 
 /**
  * @param {HTMLElement} element
@@ -699,14 +801,50 @@ function setupElementEditing(element) {
         return;
     }
 
-    element.addEventListener("mouseenter", e => {
-        createHoverToolbar(element);
+    if (tagIs(element, "A") && !element.dataset.originalHref) {
+        // getAttribute instead of .href so that the domain name isn't inserted automatically
+        element.dataset.originalHref = element.getAttribute("href");
+        element.href = "javascript:void(0);";
+    }
+
+    element.addEventListener("click", e => {
+        selectOrRemoveIfSelected(element);
         e.stopPropagation();
     });
-    element.addEventListener("mousemove", e => {
-        if (currentToolbarElement !== element) {
-            createHoverToolbar(element);
+
+    let triggerHover = e => {
+        if (isEditorOpen || element.classList.contains("editor-hover-element")) {
+            return;
         }
+        element.classList.add("editor-hover-element");
+
+        if (currentLinkHolder) {
+            currentLinkHolder.remove();
+            currentLinkHolder = null;
+        }
+
+        if (tagIs(element, "A")) {
+            let linkHolder = document.createElement("a");
+            linkHolder.classList.add("editor-link-holder");
+            linkHolder.textContent = "-> Click here to open the link."
+            linkHolder.href = element.dataset.originalHref;
+
+            linkHolder.style.left = (element.offsetLeft + element.offsetWidth) + "px";
+            linkHolder.style.top = (element.offsetTop - 3 - 5) + "px";
+            // linkHolder.style.width = (element.offsetWidth + 3 - 1) + "px";
+            document.body.append(linkHolder);
+
+            currentLinkHolder = linkHolder;
+        }
+
+
+        e.stopPropagation();
+    };
+    element.addEventListener("mouseenter", triggerHover);
+    element.addEventListener("mousemove", triggerHover);
+
+    element.addEventListener("mouseleave", e => {
+        element.classList.remove("editor-hover-element");
         e.stopPropagation();
     });
 }
@@ -735,3 +873,5 @@ for (let e of document.getElementsByClassName("alert")) {
 for (let e of document.querySelectorAll("h1,h2,h3,h4,h5")) {
     setupElementEditing(e);
 }
+
+createHoverToolbar();

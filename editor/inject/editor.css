@@ -3,7 +3,13 @@
 hr { /* Make hr elements easier to click on in the editor */
     padding:2px 0px;
 }
+
 .editor-hover-element {
+    outline:2px dashed #000000;
+    outline-offset:1px;
+}
+
+.editor-selected-element {
     outline:2px dashed #007bff;
     outline-offset:1px;
 }
@@ -45,11 +51,23 @@ body {
 }
 
 .editor-hover-container {
-    position:absolute;
+    position:fixed;
+    top:20px;
+    right:20px;
     background-color:#f0f0f080;
     border:2px solid black;
-    border-top:2px dashed black;
-    border-radius:0 0 5px 5px;
+/*     border-top:2px dashed black; */
+    border-radius:5px;
+    z-index:3;
+}
+
+.editor-link-holder {
+    position:absolute;
+    display:block;
+    color:#007bff;
+    border:2px dashed #808080;
+    border-left:none;
+    padding:5px 5px 5px 10px;
     z-index:2;
 }
 
@@ -83,6 +101,7 @@ body {
 .editor-toolbar > button:active {
     background-color: #e0e0e0;
 }
+
 .editor-cancel {
     color:red !important;
 }
@@ -100,6 +119,14 @@ body {
     font-style: normal;
     transform:rotate(-90deg);
     display:inline-block;
+}
+.editor-hover-container-colorless button {
+    background-color:#f0f0f0 !important;
+    color:#808080 !important;
+}
+button.editor-button-deactivated {
+    background-color:#f0f0f0 !important;
+    color:#808080 !important;
 }
 
 
