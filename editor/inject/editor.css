@@ -6,11 +6,8 @@ hr { /* Make hr elements easier to click on in the editor */
 .editor-hover-element {
     outline:2px dashed #007bff;
     outline-offset:1px;
-    margin-bottom:0 !important;
 }
-p.editor-hover-element {
-    margin-bottom:0px;
-}
+
 .editor-container {
     margin:1em 0;
     border:1px solid black;
@@ -43,6 +40,18 @@ p.editor-hover-element {
     width:100%;
 }
 
+body {
+    position:relative;
+}
+
+.editor-hover-container {
+    position:absolute;
+    background-color:#f0f0f080;
+    border:2px solid black;
+    border-top:2px dashed black;
+    border-radius:0 0 5px 5px;
+    z-index:2;
+}
 
 .editor-toolbar {
     display:flex;
@@ -59,13 +68,14 @@ p.editor-hover-element {
     color:#007bff;
 
     flex-grow:1;
-    background-color: white;
+    background-color: #ffffff;
     border:none;
     text-align: center;
     padding:5px 10px;
-    margin:5px;
+    margin:10px;
     border-radius:5px;
     min-width:40px;
+    box-shadow: 0 0 3px #cccccc;
 }
 .editor-toolbar > button:hover {
     background-color: #f0f0f0;

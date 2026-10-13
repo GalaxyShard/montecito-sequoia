@@ -97,6 +97,8 @@ function cancelConfirmation(cancel, defaultText) {
     return true;
 }
 
+let isEditorOpen = false;
+
 /**
  * @param {() => void} onCancel
  * @param {async () => void} onSave
@@ -170,6 +172,7 @@ function createTextEditor(element) {
         element.innerHTML = container.dataset.original;
 
         setupElementEditing(element);
+        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
     }
 
@@ -209,6 +212,7 @@ function createTextEditor(element) {
         for (let e of frag.children) {
             setupElementEditing(e);
         }
+        isEditorOpen = false;
         container.parentElement.replaceChild(frag, container);
     }
 
@@ -230,6 +234,7 @@ function createTextEditor(element) {
         ],
         content: element.outerHTML,
     })
+    isEditorOpen = true;
     element.parentElement.replaceChild(container, element);
 
     editorInstance.commands.focus("end");
@@ -268,6 +273,7 @@ function createImageEditor(element) {
 
         decodeAttributes(element, container.dataset.attributes);
         setupElementEditing(element);
+        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
     }
     async function onSave() {
@@ -283,6 +289,7 @@ function createImageEditor(element) {
         await sendMessageToApp(serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element));
 
         setupElementEditing(element);
+        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
     }
     let toolbar = createToolbar(onCancel, onSave);
@@ -292,6 +299,7 @@ function createImageEditor(element) {
     inputLabel.append(document.createTextNode("Image Link"), input)
     container.append(inputLabel, toolbar);
 
+    isEditorOpen = true;
     element.parentElement.replaceChild(container, element);
 
     input.focus();
@@ -330,6 +338,7 @@ function createLinkEditor(element) {
         element.textContent = container.dataset.original;
 
         setupElementEditing(element);
+        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
 
     }
@@ -343,6 +352,7 @@ function createLinkEditor(element) {
         await sendMessageToApp(serializeCommand("replace-element") + serializedLocation + serializeElementHtml(element));
 
         setupElementEditing(element);
+        isEditorOpen = false;
         container.parentElement.replaceChild(element, container);
 
     }
@@ -356,6 +366,7 @@ function createLinkEditor(element) {
 
     container.append(textLabel, linkLabel, toolbar);
 
+    isEditorOpen = true;
     element.parentElement.replaceChild(container, element);
 }
 
@@ -468,8 +479,8 @@ function removeHoverToolbar(element) {
     let container = element.nextElementSibling;
     if (container && container.classList.contains("editor-hover-container")) {
         container.remove();
-        currentToolbarElement = null;
     }
+    currentToolbarElement = null;
     element.classList.remove("editor-hover-element");
 }
 
@@ -478,6 +489,9 @@ function removeHoverToolbar(element) {
  */
 function createHoverToolbar(element) {
     if (element.classList.contains("editor-hover-element")) {
+        return;
+    }
+    if (isEditorOpen) {
         return;
     }
 
@@ -595,7 +609,6 @@ function createHoverToolbar(element) {
     });
     toolbar.append(addButton);
 
-
     container.addEventListener("mouseenter", e => {
         e.stopPropagation();
     });
@@ -605,7 +618,11 @@ function createHoverToolbar(element) {
     element.classList.add("editor-hover-element");
 
     container.append(toolbar);
+
     element.insertAdjacentElement("afterend", container);
+    container.style.left = (element.offsetLeft - 3) + "px";
+    container.style.top = (element.offsetTop + element.offsetHeight - 1) + "px";
+    container.style.width = (element.offsetWidth + 3 - 1) + "px";
 
     if (currentToolbarElement !== null) {
         removeHoverToolbar(currentToolbarElement);
