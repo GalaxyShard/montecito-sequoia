@@ -936,3 +936,188 @@ for (let e of document.querySelectorAll("h1,h2,h3,h4,h5")) {
 }
 
 createHoverToolbar();
+
+function createPopup(message, allowClosing) {
+    let popup = document.createElement("div");
+    popup.classList.add("editor-popup");
+
+    if (allowClosing) {
+        let closePopup = document.createElement("button");
+        closePopup.classList.add("editor-close-button");
+        closePopup.textContent = "X";
+
+        closePopup.addEventListener("click", () => {
+            popup.remove();
+        });
+        popup.append(closePopup);
+    }
+
+    let p = document.createElement("p");
+    p.textContent = message;
+    popup.append(p);
+    document.body.append(popup);
+    return popup;
+}
+
+function encodeBase64UrlSafe(text_string) {
+    const byte_array = new TextEncoder().encode(text_string);
+    const binary_string = String.fromCharCode(...byte_array);
+
+    return btoa(binary_string)
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+}
+
+function checkEditorConnection() {
+    let popup = null;
+    let lock = 0;
+    setInterval(async () => {
+        if (lock!=0 && popup === null) {
+            popup = createPopup("The editor app seems to have stopped responding. Please reopen the app or close out this page.", false);
+            return;
+        }
+
+        lock += 1;
+        if (lock > 1 && (lock-2) % 4 != 0) { // only check once every second after failure to respond
+            return;
+        }
+
+        let response = await fetch(`/editor-check`, {
+            method: "GET",
+        });
+        const body = await response.text();
+
+        if (popup !== null && popup.isConnected) {
+            popup.remove();
+            popup = null;
+        }
+
+        if (body !== "editor") {
+            popup = createPopup("The editor app is no longer running in editor mode. Please reload this page, or select 'Open site with editor' in the app.", false);
+        } else {
+            lock = 0;
+        }
+
+    }, 250);
+}
+checkEditorConnection();
+
+async function multiTabPopup(this_tab_id) {
+    let popup = createPopup("This page on this website is currently open in another tab. Would you like to use the editor in this tab? Choosing to do so will disable the other tabs.", false);
+    let this_tab = document.createElement("button");
+    this_tab.textContent = "Continue editing in this tab, disabling other tabs";
+
+    popup.append(this_tab);
+
+    await new Promise((resolve, _reject) => {
+        this_tab.addEventListener("click", () => {
+            popup.remove();
+            const current_acquired_tab_id = parseInt(localStorage.getItem(key_for_acq), 10);
+
+            if (current_acquired_tab_id !== current_acquired_tab_id) {
+                // NaN, no tab holds acquisition
+                localStorage.setItem(key_for_acq, this_tab_id);
+                resolve();
+            } else {
+                // another tab acquired the id after this popup was shown, meaning
+                // the user selected to continue in another tab
+                createPopup("", false);
+            }
+
+        });
+    });
+
+}
+
+const key_for_id = `multi-tab-check-id-${encodeBase64UrlSafe(window.location.pathname)}`;
+const key_for_acq = `multi-tab-check-acq-${encodeBase64UrlSafe(window.location.pathname)}`;
+async function checkForMultipleTabs() {
+
+    let last_tab_id_string = localStorage.getItem(key_for_id);
+    let this_tab_id;
+    if (last_tab_id_string === null) {
+        this_tab_id = 0;
+    } else {
+        this_tab_id = parseInt(last_tab_id_string, 10);
+        if (this_tab_id != this_tab_id) {
+            this_tab_id = 0;
+            console.warn("unparsable last_tab_id_string: ", last_tab_id_string);
+        } else {
+            this_tab_id += 1;
+        }
+    }
+
+
+    if (last_tab_id_string !== null) {
+        // there may be another open tab with this page, check it here
+
+        // asserts to other tabs that this tab wants to acquire the editor
+        localStorage.setItem(key_for_id, this_tab_id);
+
+        // give the tab with acquirement time to respond
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        let roundtrip = parseInt(localStorage.getItem(key_for_id), 10);
+        if (roundtrip !== this_tab_id) {
+            // another tab asserted it wants to acquire the editor
+
+            localStorage.removeItem(key_for_acq);
+
+            // assert again
+            localStorage.setItem(key_for_id, this_tab_id);
+
+            disableEditor += 1;
+            await multiTabPopup(this_tab_id);
+            disableEditor -= 1;
+        }
+    } else {
+        localStorage.setItem(key_for_id, this_tab_id);
+    }
+
+
+    // acquire the editor, disallowing any other tab from accessing it
+    localStorage.setItem(key_for_acq, this_tab_id);
+
+    let lock = 0;
+    setInterval(async () => {
+        if (lock == 1) {
+            // keep asserting to other tabs while a multiTabPopup may be open
+            localStorage.setItem(key_for_id, this_tab_id);
+            return;
+        }
+        if (lock == 2) {
+            return;
+        }
+        const other_tab_id = parseInt(localStorage.getItem(key_for_id), 10);
+        if (other_tab_id == this_tab_id) {
+            return;
+        }
+        lock = 1;
+        disableEditor += 1;
+
+        // temporarily forfeit acquirement
+        localStorage.removeItem(key_for_acq);
+
+        // assert to other tabs that this tab still wants to keep the editor acquired
+        localStorage.setItem(key_for_id, this_tab_id);
+
+        // wait some time for the delay on the other end
+        // which has already started (or finished) at this point
+        await new Promise(resolve => setTimeout(resolve, 400));
+
+        const acquired_tab_id = parseInt(localStorage.getItem(key_for_acq), 10);
+        if (acquired_tab_id==acquired_tab_id) {
+            // editor was already acquired by another tab
+            createPopup("This page on this website was opened in another tab, and changes made in that tab have not been reflected here. Please close this tab or reload the page to continue editing.", false);
+            lock = 2; // permanently stop
+        } else {
+            // another tab is waiting to acquire
+            await multiTabPopup(this_tab_id);
+            lock = 0; // resume; acquisition resolved
+        }
+
+    }, 100);
+}
+
+setTimeout(checkForMultipleTabs, 0);
