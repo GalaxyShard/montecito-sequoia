@@ -1244,9 +1244,16 @@ fn importWebsiteCopy2(io: std.Io, gpa: std.mem.Allocator, environ_map: *const st
     var source = try std.Io.Dir.cwd().openDir(io, picked, .{ .iterate = true });
     defer source.close(io);
 
+    source.access(io, "index.html", .{}) catch |e| switch (e) {
+        error.FileNotFound => {
+            return error.ImportMissingIndexHtml;
+        },
+        else => return e,
+    };
+
     // move master-copy into backup
-    try backups_folder.deleteTree(io, "backup-master-copy-pre-import");
-    backups_folder.rename("master-copy", backups_folder, "backup-master-copy-pre-import", io) catch |e| switch (e) {
+    try backups_folder.deleteTree(io, "backup-last-master-copy-before-import");
+    backups_folder.rename("master-copy", backups_folder, "backup-last-master-copy-before-import", io) catch |e| switch (e) {
         error.FileNotFound => {}, // master copy does not exist; not an error
         else => return e,
     };
