@@ -315,7 +315,7 @@ fn serverThread3(client: std.Io.net.Stream, id: usize, state: *State) !void {
             continue;
         }
 
-        if (request.head.method == .POST and std.mem.eql(u8, request.head.target, "/post")) {
+        if (request.head.method == .POST and std.mem.eql(u8, request.head.target, "/editor-post")) {
             handlePost(&request, state) catch |e| {
                 std.debug.print("error handling post: {t}\n", .{e});
                 try request.respond("", .{ .status = .bad_request });

@@ -35,7 +35,7 @@ import Italic from '@tiptap/extension-italic'
 import Link from '@tiptap/extension-link'
 
 async function sendMessageToApp(body) {
-    await fetch("/post", {
+    return await fetch("/editor-post", {
         method: "POST",
         body: body,
     });
