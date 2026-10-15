@@ -1,10 +1,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const Webview = @import("Webview");
-const known_folders = @import("known-folders");
-const filesystem_dialog = @import("filesystem-dialog");
 
 const clipboard = @import("clipboard");
+const filesystem_dialog = @import("filesystem-dialog");
+const known_folders = @import("known-folders");
+const Webview = @import("Webview");
 
 const app_html = @embedFile("index.html");
 const inject_editor_css = @embedFile("inject/editor.css");
@@ -310,7 +310,7 @@ fn serverThread3(client: std.Io.net.Stream, id: usize, state: *State) !void {
             });
             continue;
         }
-        if (state.site_mode != .none) {
+        if (state.site_mode == .none) {
             try request.respond("", .{ .status = .service_unavailable });
             continue;
         }
@@ -746,9 +746,6 @@ fn parseContents(gpa: std.mem.Allocator, contents: []const u8) !ParsedHtml {
         if (contents[index+1] == '/') {
             const tag_name = contents[index+2..end_of_tag_name];
             const tags_array = try parsed.tags.getOrPutValue(tag_name, .empty);
-            if (tags_array.value_ptr.items.len==0) {
-                std.debug.print("created tag `{s}`\n", .{tag_name});
-            }
             try tags_array.value_ptr.append(gpa, .{
                 .index = index,
                 .end_index = end_of_tag+1,
@@ -758,7 +755,6 @@ fn parseContents(gpa: std.mem.Allocator, contents: []const u8) !ParsedHtml {
         } else {
             const tag_name = contents[index+1..end_of_tag_name];
             const tags_array = try parsed.tags.getOrPutValue(tag_name, .empty);
-                std.debug.print("created tag `{s}`\n", .{tag_name});
             try tags_array.value_ptr.append(gpa, .{
                 .index = index,
                 .end_index = end_of_tag+1,
@@ -1075,8 +1071,8 @@ fn shutdownAndJoinServerThread(state: *State) void {
 
 fn stopHosting(context: Webview.BindContext, state: *State) void {
     switch (state.site_mode) {
-        .editor, .production => return,
-        .none => {},
+        .editor, .production => {},
+        .none => return,
     }
     if (state.thread == null) {
         return;

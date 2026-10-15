@@ -794,6 +794,13 @@ function serializePlacementLocation(element) {
         if (elements[i].classList.contains("editor")) {
             continue;
         }
+        if (element.tagName === "SCRIPT" && element.src === "/editor.js") {
+            continue;
+        }
+        if (element.tagName === "LINK" && element.href === "/editor.css") {
+            continue;
+        }
+
         let count = true;
         for (let item of elements[i].classList.values()) {
             if (item.startsWith("editor-") && item != "editor-hover-element" && item != "editor-selected-element") {
@@ -977,7 +984,7 @@ function checkEditorConnection() {
     let popup = null;
     let lock = 0;
     setInterval(async () => {
-        if (lock!=0 && popup === null) {
+        if (lock>=3 && popup === null) {
             popup = createPopup("The editor app seems to have stopped responding. Please reopen the app or close out this page.", false);
             return;
         }
@@ -1026,7 +1033,7 @@ async function multiTabPopup(this_tab_id) {
             } else {
                 // another tab acquired the id after this popup was shown, meaning
                 // the user selected to continue in another tab
-                createPopup("", false);
+                createPopup("You've already chosen to edit in another tab! Please close this tab or reload the page to continue.", false);
             }
 
         });
@@ -1060,7 +1067,7 @@ async function checkForMultipleTabs() {
         localStorage.setItem(key_for_id, this_tab_id);
 
         // give the tab with acquirement time to respond
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         let roundtrip = parseInt(localStorage.getItem(key_for_id), 10);
         if (roundtrip !== this_tab_id) {
@@ -1075,19 +1082,21 @@ async function checkForMultipleTabs() {
             await multiTabPopup(this_tab_id);
             disableEditor -= 1;
         }
-    } else {
-        localStorage.setItem(key_for_id, this_tab_id);
     }
 
 
     // acquire the editor, disallowing any other tab from accessing it
+    localStorage.setItem(key_for_id, this_tab_id);
     localStorage.setItem(key_for_acq, this_tab_id);
 
     let lock = 0;
     setInterval(async () => {
         if (lock == 1) {
-            // keep asserting to other tabs while a multiTabPopup may be open
-            localStorage.setItem(key_for_id, this_tab_id);
+            const acquired_tab_id = parseInt(localStorage.getItem(key_for_acq), 10);
+            if (acquired_tab_id!=acquired_tab_id) {
+                // keep asserting to other tabs while a multiTabPopup may be open
+                localStorage.setItem(key_for_id, this_tab_id);
+            }
             return;
         }
         if (lock == 2) {
@@ -1118,6 +1127,7 @@ async function checkForMultipleTabs() {
         } else {
             // another tab is waiting to acquire
             await multiTabPopup(this_tab_id);
+            disableEditor -= 1;
             lock = 0; // resume; acquisition resolved
         }
 

@@ -230,7 +230,9 @@ exportWebsite.addEventListener("click", () => {
 for (let button of backButtons) {
     button.addEventListener("click", () => {
         setPage(frontPage);
-        window.backendStopHosting();
+        if (button.parentElement === hostingPage) {
+            window.backendStopHosting();
+        }
     });
 }
 
