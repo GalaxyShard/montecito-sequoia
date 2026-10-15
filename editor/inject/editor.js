@@ -893,7 +893,7 @@ function setupElementEditing(element) {
             linkHolder.style.left = (element.offsetLeft + element.offsetWidth) + "px";
             linkHolder.style.top = (element.offsetTop - 3 - 5) + "px";
             // linkHolder.style.width = (element.offsetWidth + 3 - 1) + "px";
-            document.body.append(linkHolder);
+            element.parentElement.append(linkHolder);
 
             currentLinkHolder = linkHolder;
         }
