@@ -172,6 +172,7 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
             context.returnError("Somehow the site is already being hosted. Please restart the app.") catch |e| {
                 std.debug.panic("unrecoverable error: {t}\n", .{e});
             };
+            return;
         },
         .none => {},
     }
@@ -316,10 +317,26 @@ fn serverThread3(client: std.Io.net.Stream, id: usize, state: *State) !void {
         }
 
         if (request.head.method == .POST and std.mem.eql(u8, request.head.target, "/editor-post")) {
-            handlePost(&request, state) catch |e| {
+            if (handlePost(&request, state)) {
+                try request.respond("", .{ .status = .ok });
+            }
+            else |e| {
                 std.debug.print("error handling post: {t}\n", .{e});
-                try request.respond("", .{ .status = .bad_request });
-            };
+                switch (e) {
+                    error.MismatchedTagCount => {
+                        try request.respond("MISMATCHED_TAG_COUNT", .{ .status = .ok });
+                    },
+                    error.MalformedHtml => {
+                        try request.respond("MALFORMED_HTML", .{ .status = .ok });
+                    },
+                    error.IoFailed,
+                    error.OutOfMemory,
+                    error.WriteFailed,
+                    error.InvalidPost => {
+                        try request.respond("UNKNOWN_POST_ERROR", .{ .status = .ok });
+                    },
+                }
+            }
         } else if (request.head.method == .GET) {
             try handleGet(&request, state);
         } else {
@@ -329,11 +346,18 @@ fn serverThread3(client: std.Io.net.Stream, id: usize, state: *State) !void {
     }
 }
 
-fn handlePost(request: *std.http.Server.Request, state: *State) !void {
+const PostError = error {
+    InvalidPost,
+    IoFailed,
+    MismatchedTagCount,
+    MalformedHtml,
+    WriteFailed,
+} || std.mem.Allocator.Error;
+fn handlePost(request: *std.http.Server.Request, state: *State) PostError!void {
     std.debug.print("recieved POST\n", .{});
     var buffer: [1024]u8 = undefined;
     const body_reader = request.server.reader.bodyReader(&buffer, .none, request.head.content_length);
-    const body = try body_reader.allocRemaining(state.gpa, .limited(1024 * 1024));
+    const body = body_reader.allocRemaining(state.gpa, .limited(1024 * 1024)) catch return error.IoFailed;
     defer state.gpa.free(body);
 
     std.debug.print("{s}\n", .{body});
@@ -351,18 +375,18 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     const file_in, const path = findHtml(state.io, state.gpa, state.site_dir.?, get_path[1..]) catch |e| switch (e) {
         error.NotFound => return error.InvalidPost,
         error.UnsafePath => return error.InvalidPost,
-        error.OutOfMemory => return e,
+        error.OutOfMemory => return error.OutOfMemory,
     };
     defer state.gpa.free(path);
 
     const file_contents = blk: {
         defer file_in.close(state.io);
         var reader = file_in.reader(state.io, &.{});
-        break :blk try reader.interface.allocRemaining(state.gpa, .limited(1024 * 1024 * 64));
+        break :blk reader.interface.allocRemaining(state.gpa, .limited(1024 * 1024 * 64)) catch return error.IoFailed;
     };
     defer state.gpa.free(file_contents);
 
-    var file = try std.Io.Dir.cwd().createFileAtomic(state.io, path, .{.replace = true});
+    var file = std.Io.Dir.cwd().createFileAtomic(state.io, path, .{.replace = true}) catch return error.IoFailed;
     defer file.deinit(state.io);
 
     // body_reader is no longer being used; buffer is safe to overwrite
@@ -603,9 +627,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     }
 
     try writer.interface.flush();
-    try file.replace(state.io);
-
-    try request.respond("", .{ .status = .ok });
+    file.replace(state.io) catch return error.IoFailed;
 }
 
 const SerializableLocation = struct {

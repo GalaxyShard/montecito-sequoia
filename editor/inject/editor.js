@@ -35,10 +35,27 @@ import Italic from '@tiptap/extension-italic'
 import Link from '@tiptap/extension-link'
 
 async function sendMessageToApp(body) {
-    return await fetch("/editor-post", {
+    let response = await fetch("/editor-post", {
         method: "POST",
         body: body,
     });
+    const response_body = await response.text();
+
+    if (response_body === "MISMATCHED_TAG_COUNT") {
+        disableEditor += 1;
+        createPopup("The most recent thing to be edited failed to be saved because there is a mismatch between the file you are seeing and the file on your device. If you moved or edited the file using another program since the last change, please reload this page to see those changes. Otherwise, this is either a bug in the editor or the file had malformed edits done to it manually by someone.", false);
+        throw response_body;
+    }
+    if (response_body === "MALFORMED_HTML") {
+        disableEditor += 1;
+        createPopup("The most recent thing to be edited failed to be saved because there is a problem with the contents of the HTML file; it may have been corrupted. The editor is now temporarily disabled; reload the page to re-enable the editor.", false);
+        throw response_body;
+
+    }
+    if (response_body === "UNKNOWN_POST_ERROR") {
+        createPopup("The most recent edit failed to be saved for an unknown reason.", true);
+        throw response_body;
+    }
 }
 
 const SmallMark = Mark.create({
