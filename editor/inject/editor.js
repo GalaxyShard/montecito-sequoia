@@ -737,6 +737,29 @@ function createHoverToolbar() {
     });
     toolbar.append(addButton);
 
+    let gripPoint = null;
+    let initialPos = null;
+    container.addEventListener("pointerdown", e => {
+        gripPoint = [e.clientX, e.clientY];
+        initialPos = [parseInt(container.style.right.replace("px", "")), parseInt(container.style.top.replace("px", ""))];
+        e.stopPropagation();
+    });
+    function handlePointerUp(e) {
+        gripPoint = null;
+        initialPos = null;
+        e.stopPropagation();
+    }
+    container.addEventListener("pointerup", handlePointerUp);
+    container.addEventListener("pointercancel", handlePointerUp);
+
+    document.documentElement.addEventListener("pointermove", e => {
+        if (gripPoint !== null) {
+            container.style.top = (initialPos[1] + e.clientY - gripPoint[1]) + "px";
+            container.style.right = (initialPos[0] - e.clientX + gripPoint[0]) + "px";
+            e.stopPropagation();
+        }
+    });
+
     container.addEventListener("mouseenter", e => {
         if (currentLinkHolder) {
             currentLinkHolder.remove();
@@ -744,9 +767,9 @@ function createHoverToolbar() {
         }
         e.stopPropagation();
     });
-    container.addEventListener("mousemove", e => {
-        e.stopPropagation();
-    });
+
+    container.style.top = "20px";
+    container.style.right = "20px";
 
     container.append(toolbar);
     document.body.append(container);
