@@ -11,13 +11,18 @@ const inject_editor_css = @embedFile("inject/editor.css");
 const inject_editor_js = @embedFile("inject/editor.js");
 const quill_snow_css = @embedFile("quill.snow.css");
 
+const SiteMode = enum { editor, production, none };
 const State = struct {
     // main thread deinitializes, server thread appends, server-client threads remove
 
     io: std.Io,
     environ_map: *const std.process.Environ.Map,
     mutex: std.Io.Mutex = .init,
-    clients: std.ArrayList(struct { stream: std.Io.net.Stream, thread: std.Thread, id: usize }) = .empty,
+    clients: std.ArrayList(struct {
+        stream: std.Io.net.Stream,
+        thread: std.Thread,
+        id: usize,
+    }) = .empty,
 
     // used by main thread only
     thread: ?std.Thread,
@@ -32,7 +37,7 @@ const State = struct {
     gpa: std.mem.Allocator,
     shutdown: std.atomic.Value(bool) = .init(false),
 
-    site_mode: enum { editor, production },
+    site_mode: SiteMode,
 };
 
 fn copyDirectory(io: std.Io, gpa: std.mem.Allocator, source: std.Io.Dir, dest_parent: std.Io.Dir, dest_subdir: []const u8) !void {
@@ -115,7 +120,7 @@ pub fn main(init: std.process.Init) !void {
         .environ_map = init.environ_map,
         .thread = null,
         .tcp_server = undefined,
-        .site_mode = undefined,
+        .site_mode = .none,
         .gpa = gpa,
         .site_dir = site_dir,
     };
@@ -152,6 +157,8 @@ pub fn main(init: std.process.Init) !void {
     const export_website = try webview.bind(gpa, "backendExportWebsite", &exportWebsite, .{&state});
     defer export_website.deinit();
 
+    startServerThread(&state, .none) catch {};
+
     try webview.run();
 }
 
@@ -160,17 +167,25 @@ fn copyToClipboard(_: Webview.BindContext, text: []const u8) void {
 }
 
 fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) void {
-    if (state.thread) |_| {
-        return;
+    switch (state.site_mode) {
+        .editor, .production => {
+            context.returnError("Somehow the site is already being hosted. Please restart the app.") catch |e| {
+                std.debug.panic("unrecoverable error: {t}\n", .{e});
+            };
+        },
+        .none => {},
+    }
+    if (state.thread != null) {
+        shutdownAndJoinServerThread(state);
     }
 
     if (state.site_dir == null) {
-        context.returnError("No site build or master copy found. A copy of the site build is needed to view and edit the site.") catch |e| {
+        context.returnError("No master copy of the website found. A copy of the website is needed for viewing and editing.") catch |e| {
             std.debug.panic("unrecoverable error: {t}\n", .{e});
         };
     }
 
-    state.site_mode = if (std.mem.eql(u8, site_type, "editor")) blk: {
+    const site_mode: SiteMode = if (std.mem.eql(u8, site_type, "editor")) blk: {
         break :blk .editor;
     } else if (std.mem.eql(u8, site_type, "production")) blk: {
         break :blk .production;
@@ -178,19 +193,24 @@ fn hostSite(context: Webview.BindContext, site_type: []const u8, state: *State) 
         std.debug.panic("unexpected site type '{s}'", .{site_type});
     };
 
-    const address: std.Io.net.IpAddress = .fromIp6(.loopback(8192));
-    state.tcp_server = address.listen(state.io, .{ .reuse_address = true }) catch |e| {
+    std.debug.print("site type: {s}\n", .{site_type});
+    startServerThread(state, site_mode) catch |e| {
         context.returnError(e) catch |e2| {
             std.debug.panic("unrecoverable error: {t}\n", .{e2});
         };
         return;
     };
-    std.debug.print("port: {}\n", .{state.tcp_server.socket.address.getPort()});
-    std.debug.print("site type: {s}\n", .{site_type});
-
-    state.thread = std.Thread.spawn(.{}, serverThread, .{state}) catch |e| std.debug.panic("{t}", .{e});
 
     context.returnValue(.{ .port = state.tcp_server.socket.address.getPort() }) catch |e| std.debug.panic("{t}", .{e});
+}
+
+fn startServerThread(state: *State, site_mode: SiteMode) !void {
+    state.site_mode = site_mode;
+    const address: std.Io.net.IpAddress = .fromIp6(.loopback(8192));
+    state.tcp_server = try address.listen(state.io, .{ .reuse_address = true });
+    std.debug.print("port: {}\n", .{state.tcp_server.socket.address.getPort()});
+
+    state.thread = std.Thread.spawn(.{}, serverThread, .{state}) catch |e| std.debug.panic("{t}", .{e});
 }
 
 fn serverThread(state: *State) void {
@@ -274,19 +294,38 @@ fn serverThread3(client: std.Io.net.Stream, id: usize, state: *State) !void {
     while (true) {
         var request = try http_server.receiveHead();
 
+        if (request.head.method == .GET and std.mem.startsWith(u8, request.head.target, "/editor-check")) {
+            const response = switch (state.site_mode) {
+                .editor => "editor",
+                .production => "production",
+                .none => "none",
+            };
+            try request.respond(response, .{
+                .extra_headers = &.{
+                    .{
+                        .name = "Content-Type",
+                        .value = "text/plain",
+                    },
+                },
+            });
+            continue;
+        }
+        if (state.site_mode != .none) {
+            try request.respond("", .{ .status = .service_unavailable });
+            continue;
+        }
+
         if (request.head.method == .POST and std.mem.eql(u8, request.head.target, "/post")) {
             handlePost(&request, state) catch |e| {
                 std.debug.print("error handling post: {t}\n", .{e});
                 try request.respond("", .{ .status = .bad_request });
             };
-            continue;
-        } else if (request.head.method != .GET) {
+        } else if (request.head.method == .GET) {
+            try handleGet(&request, state);
+        } else {
             std.debug.print("404: unexpected request method {t}\n", .{request.head.method});
             try request.respond("404 not found", .{ .status = .not_found });
-            continue;
         }
-
-        try handleGet(&request, state);
     }
 }
 
@@ -883,8 +922,10 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
             \\    <link rel="stylesheet" href="/editor.css">
             \\
         );
+
         const response = try std.mem.join(state.gpa, "", &.{ file_contents[0..index], append, file_contents[index..] });
         defer state.gpa.free(response);
+
         try request.respond(response, .{
             .extra_headers = &.{
                 .{
@@ -905,15 +946,24 @@ fn handleGet(request: *std.http.Server.Request, state: *State) !void {
     }
 }
 
-fn stopHosting(context: Webview.BindContext, state: *State) void {
-    if (state.thread == null) {
-        return;
-    }
-
+fn shutdownAndJoinServerThread(state: *State) void {
     state.shutdown.store(true, .monotonic);
     state.io.vtable.netShutdown(state.io.userdata, state.tcp_server.socket.handle, .both) catch |e| std.debug.panic("{t}", .{e});
     state.thread.?.join();
     state.thread = null;
+}
+
+fn stopHosting(context: Webview.BindContext, state: *State) void {
+    switch (state.site_mode) {
+        .editor, .production => return,
+        .none => {},
+    }
+    if (state.thread == null) {
+        return;
+    }
+
+    shutdownAndJoinServerThread(state);
+    startServerThread(state, .none) catch {};
 
     context.returnValue({}) catch |e| {
         std.debug.panic("unrecoverable error: {t}\n", .{e});
