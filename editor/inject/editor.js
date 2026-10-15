@@ -510,6 +510,23 @@ function createAddElementDropdown() {
     dropdown.append(insertParagraph);
 
 
+    let insertList = document.createElement("button");
+    insertList.classList.add("editor-element");
+    insertList.textContent = "Bullet point list";
+    insertList.addEventListener("click", async _ => {
+        if (disableEditor != 0) return;
+
+        let e = document.createElement("ul");
+        let li0 = document.createElement("li");
+        let li1 = document.createElement("li");
+        li0.textContent = "Bullet point 1";
+        li1.textContent = "Bullet point 2";
+        e.append(li0, li1);
+        await finalizeAddition(e);
+    });
+    dropdown.append(insertList);
+
+
     let insertHr = document.createElement("button");
     insertHr.classList.add("editor-element");
     insertHr.textContent = "Horizontal Bar";
