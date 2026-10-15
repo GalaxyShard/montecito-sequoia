@@ -26,6 +26,7 @@
 let frontPage = document.getElementById("front-page");
 let hostingPage = document.getElementById("hosting-page");
 let backupsPage = document.getElementById("manage-backups-page");
+let popup = document.getElementById("error-popup");
 
 let frontPageStatus = document.getElementById("front-page-status");
 
@@ -56,6 +57,7 @@ function setPage(page) {
     frontPage.hidden = true;
     hostingPage.hidden = true;
     backupsPage.hidden = true;
+    popup.hidden = true;
 
     linkButtons.hidden = true;
 
@@ -65,26 +67,28 @@ function setPage(page) {
 }
 openProduction.addEventListener("click", () => {
     setPage(hostingPage);
-    hostingPageTitle.textContent = "Previewing production site";
+    hostingPageTitle.textContent = "Loading site without editor...";
     hostingStatus.textContent = "Loading...";
 
     window.backendHostSite("production").then(info => {
+        hostingPageTitle.textContent = "Website is ready to be viewed. Please open the link below in any web browser.";
         hostingStatus.textContent = "http://localhost:" + info.port + "/";
         linkButtons.hidden = false;
     }).catch(e => {
-        hostingStatus.textContent = "Error loading site: " + e;
+        hostingPageTitle.textContent = "Error loading site without editor: " + e;
     });
 });
 openEditor.addEventListener("click", () => {
     setPage(hostingPage);
-    hostingPageTitle.textContent = "Hosting site with editor";
-    hostingStatus.textContent = "Loading...";
+    hostingPageTitle.textContent = "Editor is loading...";
+    hostingStatus.textContent = "";
 
     window.backendHostSite("editor").then(info => {
+        hostingPageTitle.textContent = "Editor is active. Please open the link below in any web browser.";
         hostingStatus.textContent = "http://localhost:" + info.port + "/";
         linkButtons.hidden = false;
     }).catch(e => {
-        hostingStatus.textContent = "Error loading site: " + e;
+        hostingPageTitle.textContent = "Error loading site with editor: " + e;
     });
 });
 
@@ -127,7 +131,7 @@ function refreshBackupsList() {
         backupsList.replaceChildren(...newNodes);
         backupsStatus.textContent = "Loaded backups";
     }).catch(e => {
-        backupsStatus.textContent = "Failed to load backups: " + e;
+        openPopup("Failed to load backups: " + e);
     });
     isRefreshingBackups = false;
 }
@@ -138,14 +142,14 @@ makeBackup.addEventListener("click", () => {
         backupsStatus.textContent = "Successfully backed up";
         refreshBackupsList();
     }).catch(e => {
-        backupsStatus.textContent = "Failed to backup: " + e;
+        openPopup("Failed to backup: " + e);
     });
 });
 
 renameBackup.addEventListener("click", () => {
     backupsStatus.textContent = "Renaming backup...";
     if (selectedBackupEntry === null) {
-        backupsStatus.textContent = "No backup selected (click one to select)";
+        openPopup("No backup was selected (click one to select)");
         return;
     }
     let newName = backupNameInput.value;
@@ -154,7 +158,7 @@ renameBackup.addEventListener("click", () => {
         backupsStatus.textContent = "Successfully renamed backup";
         refreshBackupsList();
     }).catch(e => {
-        backupsStatus.textContent = "Failed to rename backup: " + e;
+        openPopup("Failed to rename backup: " + e);
     });
 });
 
@@ -163,19 +167,21 @@ renameBackup.addEventListener("click", () => {
 restoreBackup.addEventListener("click", () => {
     backupsStatus.textContent = "Restoring backup...";
     if (selectedBackupEntry === null) {
+        openPopup("No backup was selected (click one to select)");
         backupsStatus.textContent = "No backup selected (click one to select)";
         return;
     }
     window.backendRestoreBackup(selectedBackupEntry.dataset.entryName).then(() => {
         backupsStatus.textContent = "Successfully restored backup";
     }).catch(e => {
-        backupsStatus.textContent = "Failed to restore backup: " + e;
+        openPopup("Failed to restore backup: " + e);
     });
 });
 
 deleteBackup.addEventListener("click", () => {
     backupsStatus.textContent = "Deleting backup...";
     if (selectedBackupEntry === null) {
+        openPopup("No backup was selected (click one to select)");
         backupsStatus.textContent = "No backup selected (click one to select)";
         return;
     }
@@ -183,7 +189,7 @@ deleteBackup.addEventListener("click", () => {
         backupsStatus.textContent = "Successfully deleted backup";
         refreshBackupsList();
     }).catch(e => {
-        backupsStatus.textContent = "Failed to delete backup: " + e;
+        openPopup("Failed to delete backup: " + e);
     });
 });
 
@@ -191,12 +197,16 @@ importWebsiteCopy.addEventListener("click", () => {
     frontPageStatus.textContent = "Importing website...";
     window.backendImportWebsiteCopy().then(info => {
         if (info.cancelled) {
-            frontPageStatus.textContent = "No folder was selected to import";
+            openPopup("No folder was selected to import");
         } else {
             frontPageStatus.textContent = "Imported website copy";
         }
     }).catch(e => {
-        frontPageStatus.textContent = "Failed to import website: " + e;
+        if (e == "ImportMissingIndexHtml") {
+            openPopup("Failed to import website because the file for the front page, index.html, is missing. Did you select the correct folder?");
+        } else {
+            openPopup("Failed to import website: " + e);
+        }
     });
 });
 
@@ -204,15 +214,15 @@ exportWebsite.addEventListener("click", () => {
     frontPageStatus.textContent = "Exporting website...";
     window.backendExportWebsite().then(info => {
         if (info.cancelled) {
-            frontPageStatus.textContent = "No folder was selected to export to";
+            openPopup("No folder was selected to export to");
         } else {
-            frontPageStatus.textContent = "Exported";
+            frontPageStatus.textContent = "Exported successfully";
         }
     }).catch(e => {
         if (e == "MissingTitle") {
-            frontPageStatus.textContent = "Failed to export website because there is an HTML file without a <title>. This may be caused by an empty file.";
+            openPopup("Failed to export website because there is an HTML file without a <title>. This may be caused by an empty file.");
         } else {
-            frontPageStatus.textContent = "Failed to export website: " + e;
+            openPopup("Failed to export website: " + e);
         }
     });
 });
@@ -234,4 +244,19 @@ copyLink.addEventListener("click", () => {
     // navigator.clipboard.writeText(url);
 
     window.backendCopyToClipboard(url);
+});
+
+function openPopup(message) {
+    let p = popup.getElementsByTagName("p")[0];
+    p.textContent = message;
+
+    frontPageStatus.textContent = "";
+    backupsStatus.textContent = "";
+
+    popup.hidden = false;
+}
+
+let closePopup = popup.getElementsByTagName("button")[0]
+closePopup.addEventListener("click", () => {
+    popup.hidden = true;
 });
