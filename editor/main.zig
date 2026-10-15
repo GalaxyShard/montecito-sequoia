@@ -362,11 +362,11 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     };
     defer state.gpa.free(file_contents);
 
-    const file = try std.Io.Dir.cwd().createFile(state.io, path, .{});
-    defer file.close(state.io);
+    var file = try std.Io.Dir.cwd().createFileAtomic(state.io, path, .{.replace = true});
+    defer file.deinit(state.io);
 
     // body_reader is no longer being used; buffer is safe to overwrite
-    var writer = file.writer(state.io, &buffer);
+    var writer = file.file.writer(state.io, &buffer);
 
     if (std.mem.eql(u8, command, "add-element")) {
         const html_start = body_iter.index orelse return error.InvalidPost;
@@ -577,6 +577,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     }
 
     try writer.interface.flush();
+    try file.replace(state.io);
 
     try request.respond("", .{ .status = .ok });
 }
