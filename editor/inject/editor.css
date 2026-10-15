@@ -139,6 +139,7 @@ button.editor-button-deactivated {
     box-shadow:0 0 10px #000000;
     border-radius:5px;
     border:1px solid black;
+    padding:10px;
 }
 .editor-popup > .editor-close-button {
     width:50px;
