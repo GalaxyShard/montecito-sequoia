@@ -167,7 +167,7 @@ function decodeAttributes(element, attributes) {
     }
 }
 
-let isEditorOpen = false;
+let isElementBeingEdited = false;
 
 /**
  * @param {HTMLElement} element
@@ -555,12 +555,12 @@ function deselectSelected() {
     }
 }
 function handleEditorOpen() {
-    isEditorOpen = true;
+    isElementBeingEdited = true;
     selectedElement = null;
     hoverToolbarContainer.classList.add("editor-hover-container-colorless");
 }
 function handleEditorClose(newElement) {
-    isEditorOpen = false;
+    isElementBeingEdited = false;
     if (newElement !== null) {
         selectElement(newElement);
     } else {
@@ -570,7 +570,7 @@ function handleEditorClose(newElement) {
 }
 
 function toolbarDeactivated() {
-    return selectedElement===null || isEditorOpen || disableEditor;
+    return selectedElement===null || isElementBeingEdited || disableEditor;
 }
 
 /**
@@ -596,7 +596,7 @@ function selectElement(element) {
  * @param {HTMLElement} element
  */
 function selectOrRemoveIfSelected(element) {
-    if (isEditorOpen) {
+    if (isElementBeingEdited) {
         return;
     }
     if (selectedElement === element) {
@@ -874,7 +874,7 @@ function setupElementEditing(element) {
     });
 
     let triggerHover = e => {
-        if (isEditorOpen || element.classList.contains("editor-hover-element")) {
+        if (isElementBeingEdited || element.classList.contains("editor-hover-element")) {
             return;
         }
         element.classList.add("editor-hover-element");
