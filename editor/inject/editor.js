@@ -96,6 +96,7 @@ function cancelConfirmation(cancel, defaultText) {
         return false;
     }
     cancel.dataset.clicked = "false";
+    cancel.textContent = defaultText;
     return true;
 }
 
