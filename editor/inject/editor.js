@@ -783,18 +783,18 @@ function createHoverToolbar() {
 function serializePlacementLocation(element) {
     let elements = document.getElementsByTagName(element.tagName);
     let filesystem_index = 0;
+    let total_count = 0;
     let found = false;
     for (let i = 0; i < elements.length; ++i) {
         if (elements[i] == element) {
             found = true;
-            break;
         }
 
         // ignore editor-generated elements
-        let count = true;
         if (elements[i].classList.contains("editor")) {
             continue;
         }
+        let count = true;
         for (let item of elements[i].classList.values()) {
             if (item.startsWith("editor-") && item != "editor-hover-element" && item != "editor-selected-element") {
                 count = false;
@@ -803,13 +803,16 @@ function serializePlacementLocation(element) {
         }
 
         if (count) {
-            filesystem_index += 1;
+            if (!found) {
+                filesystem_index += 1;
+            }
+            total_count += 1;
         }
     }
     if (!found) {
         console.error("fatal: cannot find element in DOM to serialize: " + element.tagName.toLowerCase(), element);
     }
-    return element.tagName.toLowerCase() + "\n" + (element.classList.contains("alert") ? "alert" : "not-alert") + "\n" + filesystem_index + "\n";
+    return element.tagName.toLowerCase() + "\n" + (element.classList.contains("alert") ? "alert" : "not-alert") + "\n" + filesystem_index + "\n" + total_count + "\n";
 }
 
 /**

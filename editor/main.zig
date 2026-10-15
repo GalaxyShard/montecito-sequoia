@@ -346,7 +346,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     var body_iter = std.mem.splitScalar(u8, body, '\n');
     const command = body_iter.next() orelse return error.InvalidPost;
     const get_path = body_iter.next() orelse return error.InvalidPost;
-    const location = decodeElementLocation(&body_iter) orelse return error.invalidPost;
+    const location = decodeElementLocation(&body_iter) orelse return error.InvalidPost;
 
     const file_in, const path = findHtml(state.io, state.gpa, state.site_dir.?, get_path[1..]) catch |e| switch (e) {
         error.NotFound => return error.InvalidPost,
@@ -368,14 +368,21 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
     // body_reader is no longer being used; buffer is safe to overwrite
     var writer = file.file.writer(state.io, &buffer);
 
+    var parsed = try parseContents(state.gpa, file_contents);
+    defer parsed.deinit(state.gpa);
+
     if (std.mem.eql(u8, command, "add-element")) {
         const html_start = body_iter.index orelse return error.InvalidPost;
         // note: has a trailing newline
         const html = body_iter.buffer[html_start..body_iter.buffer.len];
 
-        const start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
-        const closing_index = findClosingTag(file_contents, location.element_tag, start_index) orelse return error.MalformedHtml;
-        const indentation = leadingSpaces(file_contents, start_index);
+        const start_index = findNthTagIndex(&parsed, location.element_tag, location.element_index, location.total_elements) catch |e| switch (e) {
+            error.NoTagWithName => return error.InvalidPost,
+            error.TagAtIndexNotFound => return error.MismatchedTagCount,
+            error.MismatchedTagCount => return error.MismatchedTagCount,
+        };
+        const closing_index = findClosingTag(file_contents, location.element_tag, start_index.index) orelse return error.MalformedHtml;
+        const indentation = leadingSpaces(file_contents, start_index.index);
 
         if (location.is_alert) {
             // add inside the alert; before the closing tag
@@ -401,9 +408,13 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         // note: has a trailing newline
         const html = body_iter.buffer[html_start..body_iter.buffer.len];
 
-        const start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
-        const closing_index = findClosingTag(file_contents, location.element_tag, start_index) orelse return error.MalformedHtml;
-        const indentation = leadingSpaces(file_contents, start_index);
+        const start_index = findNthTagIndex(&parsed, location.element_tag, location.element_index, location.total_elements) catch |e| switch (e) {
+            error.NoTagWithName => return error.InvalidPost,
+            error.TagAtIndexNotFound => return error.MismatchedTagCount,
+            error.MismatchedTagCount => return error.MismatchedTagCount,
+        };
+        const closing_index = findClosingTag(file_contents, location.element_tag, start_index.index) orelse return error.MalformedHtml;
+        const indentation = leadingSpaces(file_contents, start_index.index);
 
         // 2 cases
         //
@@ -429,15 +440,19 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         // </p>
         // old2
 
-        try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index]));
+        try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index.index]));
         try writer.interface.writeByte('\n');
 
         try writeIndented(&writer.interface, html, indentation, null);
 
         try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[closing_index..]));
     } else if (std.mem.eql(u8, command, "remove-element")) {
-        const start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
-        const closing_index = findClosingTag(file_contents, location.element_tag, start_index) orelse return error.MalformedHtml;
+        const start_index = findNthTagIndex(&parsed, location.element_tag, location.element_index, location.total_elements) catch |e| switch (e) {
+            error.NoTagWithName => return error.InvalidPost,
+            error.TagAtIndexNotFound => return error.MismatchedTagCount,
+            error.MismatchedTagCount => return error.MismatchedTagCount,
+        };
+        const closing_index = findClosingTag(file_contents, location.element_tag, start_index.index) orelse return error.MalformedHtml;
 
         // cases
         //
@@ -455,7 +470,7 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
         // content0
         // content1
 
-        try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index]));
+        try writer.interface.writeAll(trimLeadingEmptyLine(file_contents[0..start_index.index]));
         try writer.interface.writeByte('\n');
         try writer.interface.writeAll(trimTrailingEmptyLine(file_contents[closing_index..]));
     } else if (std.mem.eql(u8, command, "move-element")) {
@@ -505,12 +520,23 @@ fn handlePost(request: *std.http.Server.Request, state: *State) !void {
 
         const new_location = decodeElementLocation(&body_iter) orelse return error.InvalidPost;
 
-        const old_start_index = findNthTagIndex(file_contents, location.element_tag, location.element_index) orelse return error.InvalidPost;
+
+        const old_start = findNthTagIndex(&parsed, location.element_tag, location.element_index, location.total_elements) catch |e| switch (e) {
+            error.NoTagWithName => return error.InvalidPost,
+            error.TagAtIndexNotFound => return error.MismatchedTagCount,
+            error.MismatchedTagCount => return error.MismatchedTagCount,
+        };
+        const old_start_index = old_start.index;
         const old_closing_index = findClosingTag(file_contents, location.element_tag, old_start_index) orelse return error.MalformedHtml;
         const old_indentation = leadingSpaces(file_contents, old_start_index);
         const old_html = file_contents[old_start_index..old_closing_index];
 
-        const new_start_index = findNthTagIndex(file_contents, new_location.element_tag, new_location.element_index) orelse return error.InvalidPost;
+        const new_start = findNthTagIndex(&parsed, new_location.element_tag, new_location.element_index, new_location.total_elements) catch |e| switch (e) {
+            error.NoTagWithName => return error.InvalidPost,
+            error.TagAtIndexNotFound => return error.MismatchedTagCount,
+            error.MismatchedTagCount => return error.MismatchedTagCount,
+        };
+        const new_start_index = new_start.index;
         const new_closing_index = findClosingTag(file_contents, new_location.element_tag, new_start_index) orelse return error.MalformedHtml;
         const new_indentation = leadingSpaces(file_contents, new_start_index);
 
@@ -586,11 +612,13 @@ const SerializableLocation = struct {
     element_tag: []const u8,
     is_alert: bool,
     element_index: usize,
+    total_elements: usize,
 };
 fn decodeElementLocation(iter: *std.mem.SplitIterator(u8, .scalar)) ?SerializableLocation {
     const element_tag = iter.next() orelse return null;
     const is_alert_string = iter.next() orelse return null;
     const element_index_string = iter.next() orelse return null;
+    const total_elements_string = iter.next() orelse return null;
 
     const is_alert = if (std.mem.eql(u8, is_alert_string, "alert")) blk: {
         break :blk true;
@@ -601,10 +629,12 @@ fn decodeElementLocation(iter: *std.mem.SplitIterator(u8, .scalar)) ?Serializabl
     };
 
     const element_index = std.fmt.parseInt(usize, element_index_string, 10) catch return null;
+    const total_elements = std.fmt.parseInt(usize, total_elements_string, 10) catch return null;
     return .{
         .element_tag = element_tag,
         .is_alert = is_alert,
         .element_index = element_index,
+        .total_elements = total_elements,
     };
 }
 
@@ -660,26 +690,115 @@ fn trimTrailingEmptyLine(contents: []const u8) []const u8 {
     }
 }
 
-fn findNthTagIndex(contents: []const u8, tag: []const u8, n: usize) ?usize {
-    std.debug.assert(tag.len <= 32 - 1);
-    var buffer: [32]u8 = undefined;
-    buffer[0] = '<';
-    @memcpy(buffer[1..][0..tag.len], tag);
-    const slice = buffer[0 .. tag.len + 1];
+const Tag = struct {
+    index: usize,
+    // index of an element 1 past the closing arrow bracket
+    end_index: usize,
+    is_closing: bool,
+    line_number: usize,
+};
+const ParsedHtml = struct {
+    tags: std.StringHashMap(std.ArrayList(Tag)),
 
-    var counter: usize = 0;
-    var after_last: usize = 0;
-    while (std.mem.indexOfPos(u8, contents, after_last, slice)) |index| {
-        after_last = index + 1;
-        if (contents[index + slice.len] != ' ' and contents[index + slice.len] != '>') {
+    fn deinit(self: *ParsedHtml, gpa: std.mem.Allocator) void {
+        var iter = self.tags.valueIterator();
+        while (iter.next()) |value| {
+            value.deinit(gpa);
+        }
+        self.tags.deinit();
+    }
+};
+fn parseContents(gpa: std.mem.Allocator, contents: []const u8) !ParsedHtml {
+    var position: usize = 0;
+    var parsed: ParsedHtml = .{
+        .tags = .init(gpa),
+    };
+    var line_number: usize = 0;
+    while (true)  {
+        const index = std.mem.indexOfPos(u8, contents, position, "<") orelse break;
+        if (std.mem.eql(u8, contents[index..index+4], "<!--")) {
+            const end_comment = std.mem.indexOfPos(u8, contents, index+4, "-->") orelse break;
+
+            var i: usize = position;
+            while (i < end_comment) {
+                i = std.mem.indexOfPos(u8, contents, i, "\n") orelse break;
+                i += 1;
+                line_number += 1;
+            }
+
+            position = end_comment + "-->".len;
             continue;
         }
-        if (counter == n) {
-            return index;
+
+        var i: usize = position;
+        while (i < index) {
+            i = std.mem.indexOfPos(u8, contents, i, "\n") orelse break;
+            i += 1;
+            line_number += 1;
+        }
+
+        const end_of_tag = std.mem.indexOfPos(u8, contents, index, ">") orelse break;
+        var end_of_tag_name = std.mem.indexOfPos(u8, contents, index, " ") orelse end_of_tag;
+        if (end_of_tag_name > end_of_tag) {
+            end_of_tag_name = end_of_tag;
+        }
+
+        if (contents[index+1] == '/') {
+            const tag_name = contents[index+2..end_of_tag_name];
+            const tags_array = try parsed.tags.getOrPutValue(tag_name, .empty);
+            if (tags_array.value_ptr.items.len==0) {
+                std.debug.print("created tag `{s}`\n", .{tag_name});
+            }
+            try tags_array.value_ptr.append(gpa, .{
+                .index = index,
+                .end_index = end_of_tag+1,
+                .line_number = line_number,
+                .is_closing = true,
+            });
+        } else {
+            const tag_name = contents[index+1..end_of_tag_name];
+            const tags_array = try parsed.tags.getOrPutValue(tag_name, .empty);
+                std.debug.print("created tag `{s}`\n", .{tag_name});
+            try tags_array.value_ptr.append(gpa, .{
+                .index = index,
+                .end_index = end_of_tag+1,
+                .line_number = line_number,
+                .is_closing = false,
+            });
+        }
+
+        position = end_of_tag+1;
+    }
+    return parsed;
+}
+
+fn findNthTagIndex(parsed: *const ParsedHtml, tag_name: []const u8, start_tag_index: usize, start_tags: usize) !Tag {
+    const tags = parsed.tags.get(tag_name) orelse return error.NoTagWithName;
+    var counter: usize = 0;
+    const tag = for (tags.items) |possible_tag| {
+        if (possible_tag.is_closing) {
+            continue;
+        }
+        if (counter == start_tag_index) {
+            break possible_tag;
         }
         counter += 1;
+    } else return error.TagAtIndexNotFound;
+
+    var start_tags_counted: usize = 0;
+    for (tags.items) |possible_tag| {
+        if (possible_tag.is_closing) {
+            continue;
+        }
+        start_tags_counted += 1;
     }
-    return null;
+
+    if (start_tags != start_tags_counted) {
+        return error.MismatchedTagCount;
+    }
+
+    return tag;
+
 }
 
 fn isAnyString(str: []const u8, strings: []const []const u8) bool {
