@@ -65,6 +65,8 @@ Heading.configure({
     levels: [1, 2, 3, 4, 5],
 })
 
+let disableEditor = 0;
+
 /**
  *
  * @param {HTMLElement} element
@@ -120,6 +122,7 @@ function createToolbar(onCancel, onSave) {
     save.classList.add("editor-save");
     save.textContent = "Save";
     save.addEventListener("click", async _ => {
+        if (disableEditor != 0) return;
         await onSave();
     });
 
@@ -308,6 +311,7 @@ function createImageEditor(element) {
         handleEditorClose(element);
     }
     async function onSave() {
+        if (disableEditor != 0) return;
         let element = document.createElement(container.dataset.tag);
 
         decodeAttributes(element, container.dataset.attributes);
@@ -371,6 +375,7 @@ function createLinkEditor(element) {
         handleEditorClose(element);
     }
     async function onSave() {
+        if (disableEditor != 0) return;
         let element = document.createElement("a");
         decodeAttributes(element, container.dataset.attributes);
 
@@ -400,6 +405,8 @@ function createLinkEditor(element) {
 }
 
 function createAddElementDropdown() {
+    if (disableEditor != 0) return;
+
     let container = hoverToolbarContainer;
     if (container.getElementsByClassName("editor-dropdown").length > 0) {
         // delete it instead
@@ -429,6 +436,8 @@ function createAddElementDropdown() {
     insertAlert.classList.add("editor-element");
     insertAlert.textContent = "Info Alert";
     insertAlert.addEventListener("click", async _ => {
+        if (disableEditor != 0) return;
+
         let e = document.createElement("div");
         e.classList.add("alert", "alert-info");
         e.role = "alert";
@@ -444,6 +453,8 @@ function createAddElementDropdown() {
     insertWarning.classList.add("editor-element");
     insertWarning.textContent = "Warning Alert";
     insertWarning.addEventListener("click", async _ => {
+        if (disableEditor != 0) return;
+
         let e = document.createElement("div");
         e.classList.add("alert", "alert-warning");
         e.role = "alert";
@@ -459,6 +470,8 @@ function createAddElementDropdown() {
     insertImage.classList.add("editor-element");
     insertImage.textContent = "Image";
     insertImage.addEventListener("click", async _ => {
+        if (disableEditor != 0) return;
+
         let e = document.createElement("img-fitted");
         e.role = "img";
         e.setAttribute("style", "\n    --image:url('/assets/logos/montecito.svg');\n    --image-max:500px;\n    height:calc(250px + 5vw);\n    border-radius:5px;\n");
@@ -472,6 +485,8 @@ function createAddElementDropdown() {
     insertLink.classList.add("editor-element");
     insertLink.textContent = "Link";
     insertLink.addEventListener("click", async _ => {
+        if (disableEditor != 0) return;
+
         let e = document.createElement("a");
         e.textContent = "Link";
         e.dataset.originalHref = "/";
@@ -486,6 +501,8 @@ function createAddElementDropdown() {
     insertParagraph.classList.add("editor-element");
     insertParagraph.textContent = "Paragraph";
     insertParagraph.addEventListener("click", async _ => {
+        if (disableEditor != 0) return;
+
         let e = document.createElement("p");
         e.textContent = "Text";
         await finalizeAddition(e);
@@ -497,6 +514,8 @@ function createAddElementDropdown() {
     insertHr.classList.add("editor-element");
     insertHr.textContent = "Horizontal Bar";
     insertHr.addEventListener("click", async _ => {
+        if (disableEditor != 0) return;
+
         let e = document.createElement("hr");
         await finalizeAddition(e);
     });
@@ -534,13 +553,15 @@ function handleEditorClose(newElement) {
 }
 
 function toolbarDeactivated() {
-    return selectedElement===null || isEditorOpen;
+    return selectedElement===null || isEditorOpen || disableEditor;
 }
 
 /**
  * @param {HTMLElement} element
  */
 function selectElement(element) {
+    if (disableEditor != 0) return;
+
     element.classList.add("editor-selected-element");
     hoverToolbarContainer.classList.remove("editor-hover-container-colorless");
     selectedElement = element;
